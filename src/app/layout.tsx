@@ -35,6 +35,51 @@ const BackgroundEffects = () => (
 
 // --- SEO Metadata ---
 export const metadata: Metadata = {
+  title: 'SecureVault',
+  description: 'SecureVault uses ECIES for secure and efficient file encryption and decryption.',
+  keywords: [
+    'File encryption',
+    'File decryption',
+    'ECIES',
+    'Asymmetric encryption',
+    'Large file encryption',
+    'Password protection',
+    'Blockchain Security'
+  ],
+  authors: [{ name: 'ttpos' }],
+  creator: 'ttpos',
+  publisher: 'ttpos',
+  openGraph: {
+    title: 'SecureVault',
+    description: 'SecureVault uses ECIES for secure and efficient file encryption and decryption.',
+    url: 'https://share.g.im',
+    siteName: 'SecureVault',
+    // images: [
+    //   {
+    //     url: 'https://share.g.im/og-image.jpg',
+    //     width: 1200,
+    //     height: 630,
+    //     alt: 'SecureVault'
+    //   }
+    // ],
+    locale: 'en_US',
+    type: 'website'
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SecureVault',
+    description: 'SecureVault uses ECIES for secure and efficient file encryption and decryption.',
+    creator: '@ttpos'
+    // images: ['https://share.g.im/twitter-image.jpg']
+  },
+  // icons: {
+  //   icon: '/favicon.ico',
+  //   shortcut: '/favicon.ico',
+  //   apple: '/apple-touch-icon.png'
+  // },
+  alternates: {
+    canonical: 'https://share.g.im'
+  }
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
