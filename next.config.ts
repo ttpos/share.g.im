@@ -1,0 +1,17 @@
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  /* config options here */webpack: (config) => {
+    config.module.rules.push({
+      test: /\.worker\.ts$/,
+      loader: 'worker-loader',
+      options: {
+        filename: 'static/[name].[hash].js',
+        publicPath: '/_next/'
+      }
+    })
+    return config
+  }
+}
+
+export default nextConfig
