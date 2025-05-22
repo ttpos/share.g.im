@@ -1,6 +1,9 @@
 'use client'
 
-import { Upload, Lock, Unlock, Info } from 'lucide-react'
+import { HDKey } from '@scure/bip32'
+import * as bip39 from '@scure/bip39'
+import { wordlist } from '@scure/bip39/wordlists/english'
+import { Upload, Lock, Unlock, Info, Key } from 'lucide-react'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Toaster, toast } from 'sonner'
 
@@ -12,17 +15,26 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
+// eslint-disable-next-line quotes
+const DEFAULT_DERIVATION_PATH = "m/44'/0'/0'/0/0"
+
 interface FileInfo {
   name: string
   size: number
   type: string
 }
 
+interface KeyPair {
+  publicKey: string
+  privateKey: string
+}
+
 export default function Home() {
-  const [key, setKey] = useState('')
+  const [keyInput, setKeyInput] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [keyPair, setKeyPair] = useState<KeyPair | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const workerRef = useRef<Worker | null>(null)
 
@@ -86,14 +98,64 @@ export default function Home() {
     URL.revokeObjectURL(url)
   }
 
+  const deriveKeyPair = (mnemonic: string): KeyPair => {
+    // Validate mnemonic
+    if (!bip39.validateMnemonic(mnemonic, wordlist)) {
+      throw new Error('Invalid mnemonic phrases')
+    }
+
+    // Derive key pair from mnemonic
+    const seed = bip39.mnemonicToSeedSync(mnemonic)
+    const masterNode = HDKey.fromMasterSeed(seed)
+    const key = masterNode.derive(DEFAULT_DERIVATION_PATH)
+
+    if (!key.privateKey || !key.publicKey) {
+      throw new Error('Failed to derive key pair')
+    }
+
+    // Convert to hex strings
+    return {
+      privateKey: Buffer.from(key.privateKey).toString('hex'),
+      publicKey: Buffer.from(key.publicKey).toString('hex')
+    }
+  }
+
+  const isHexString = (input: string): boolean => {
+    return /^[0-9a-fA-F]+$/.test(input)
+  }
+
+  const isMnemonicPhrase = (input: string): boolean => {
+    return input.split(' ').length >= 12
+  }
+
+  const generateKeys = () => {
+    if (!keyInput) {
+      toast.error('Please enter a mnemonic phrase')
+      return
+    }
+
+    if (!isMnemonicPhrase(keyInput)) {
+      toast.error('Invalid mnemonic phrase format')
+      return
+    }
+
+    try {
+      const derivedKeys = deriveKeyPair(keyInput)
+      setKeyPair(derivedKeys)
+      toast.success('Keys generated successfully! Copy the private key for decryption.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to generate keys')
+    }
+  }
+
   const processFile = async () => {
     if (!selectedFile) {
       toast.error('Please select a file first')
       return
     }
 
-    if (!key) {
-      toast.error('Please enter the key.')
+    if (!keyInput) {
+      toast.error(selectedFile.name.endsWith('.encrypted') ? 'Please enter the private key' : 'Please enter the mnemonic phrase or public key')
       return
     }
 
@@ -115,62 +177,68 @@ export default function Home() {
         offset += CHUNK_SIZE
       }
 
-      let result: { data: ArrayBuffer; filename: string }
+      // Warn for large files
+      if (fileSize > 50 * 1024 * 1024) {
+        toast.warning('Large file detected. Processing may be slow on client-side.')
+      }
+
+      let publicKey: string | undefined
+      let privateKey: string | undefined
 
       if (mode === 'encrypt') {
-        // Encrypt using Web Worker
-        const worker = workerRef.current
-        if (!worker) throw new Error('Web Worker not initialized')
-
-        result = await new Promise<{ data: ArrayBuffer; filename: string }>((resolve, reject) => {
-          worker.onmessage = (e: MessageEvent) => {
-            const { data, error } = e.data
-            if (error) {
-              reject(new Error(error))
-            } else {
-              resolve(data)
-            }
-          }
-
-          worker.postMessage({
-            mode,
-            chunks,
-            filename: selectedFile.name,
-            key
-          })
-        })
-      } else {
-        // Decrypt using server-side API
-        const formData = new FormData()
-        formData.append('file', new Blob(chunks))
-        formData.append('filename', selectedFile.name)
-        formData.append('key', key)
-
-        const response = await fetch('/api/decrypt', {
-          method: 'POST',
-          body: formData
-        })
-
-        if (!response.ok) {
-          throw new Error('Decryption failed: ' + (await response.text()))
+        if (isMnemonicPhrase(keyInput)) {
+          // Derive public key from mnemonic
+          const keyPair = deriveKeyPair(keyInput)
+          publicKey = keyPair.publicKey
+        } else if (isHexString(keyInput)) {
+          // Use input as public key
+          publicKey = keyInput
+        } else {
+          throw new Error('Invalid input. Please enter a valid mnemonic phrase or public key (hex string)')
         }
-
-        const data = await response.json()
-        result = {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-expect-error
-          data: Buffer.from(data.data, 'base64'),
-          filename: data.filename
+      } else {
+        // Decryption only accepts private key (hex string)
+        if (isHexString(keyInput)) {
+          // Validate private key length (32 bytes = 64 hex chars)
+          if (keyInput.length !== 64) {
+            throw new Error('Invalid private key length. Must be 32 bytes (64 hex characters).')
+          }
+          privateKey = keyInput
+        } else {
+          throw new Error('Invalid input. Please enter a valid private key (hex string)')
         }
       }
+
+      // Process using Web Worker
+      const worker = workerRef.current
+      if (!worker) throw new Error('Web Worker not initialized')
+
+      const result = await new Promise<{ data: ArrayBuffer; filename: string }>((resolve, reject) => {
+        worker.onmessage = (e: MessageEvent) => {
+          const { data, error } = e.data
+          if (error) {
+            reject(new Error(error))
+          } else {
+            resolve(data)
+          }
+        }
+
+        worker.postMessage({
+          mode,
+          chunks,
+          filename: selectedFile.name,
+          publicKey,
+          privateKey
+        })
+      })
 
       downloadFile(result.data, result.filename)
       toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'An error occurred')
+      toast.error(error instanceof Error ? error.message : 'An error occurred during processing')
     } finally {
       setIsProcessing(false)
-      setKey('')
+      // setKeyInput('')
     }
   }
 
@@ -245,24 +313,58 @@ export default function Home() {
             <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
               Key
             </Label>
-            <Input
-              type="text"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder={
-                selectedFile?.name.endsWith('.encrypted')
-                  ? 'Enter private key for decryption'
-                  : 'Enter public key for encryption'
-              }
-              className="font-mono text-sm"
-            />
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder={selectedFile?.name.endsWith('.encrypted') ? 'Enter private key (hex)' : 'Enter mnemonic phrase'}
+                className="font-mono text-sm flex-1 h-[40px]"
+              />
+              {!selectedFile?.name.endsWith('.encrypted') && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={generateKeys}
+                  className={cn(
+                    'text-blue-600 hover:text-blue-800',
+                    'dark:text-blue-400 dark:hover:text-blue-300'
+                  )}
+                >
+                  <Key className="w-4 h-4 mr-2" />
+                  Generate Keys
+                </Button>
+              )}
+            </div>
           </div>
+
+          {keyPair && (
+            <div className={cn(
+              'rounded-xl p-3 sm:p-4 text-xs sm:text-sm space-y-3 sm:space-y-4 backdrop-blur-sm',
+              'bg-gray-50/50 dark:bg-gray-800/30',
+              'border border-gray-200/50 dark:border-gray-700/50'
+            )}>
+              <div className="space-y-2">
+                {/* <div>
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">Public Key</span>
+                  <p className="font-mono text-gray-700 dark:text-gray-300 break-all">{keyPair.publicKey}</p>
+                </div> */}
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">Private Key</span>
+                  <p className="font-mono text-gray-700 dark:text-gray-300 break-all">{keyPair.privateKey}</p>
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 text-xs" onClick={() => navigator.clipboard.writeText(keyPair.privateKey)}>
+                  Copy the private key for decryption. Store it securely!
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <Button
               variant="default"
               size="lg"
-              disabled={!selectedFile || !key || isProcessing}
+              disabled={!selectedFile || !keyInput || isProcessing}
               onClick={processFile}
               className={cn(
                 'w-full sm:flex-1 text-white transition-all duration-300 shadow-lg disabled:shadow-none text-sm',
@@ -314,7 +416,7 @@ export default function Home() {
               </li>
               <li className="flex items-center gap-2.5 sm:gap-3">
                 <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-400" />
-                <span className="text-gray-300">Automatic download of encrypted files</span>
+                <span className="text-gray-300">Automatic download of encrypted/decrypted files</span>
               </li>
             </ul>
           </div>

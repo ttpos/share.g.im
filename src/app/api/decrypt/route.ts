@@ -5,11 +5,16 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get('file') as Blob
-    const key = formData.get('key') as string
+    const privateKey = formData.get('privateKey') as string
     const filename = formData.get('filename') as string
 
-    if (!key) {
+    if (!privateKey) {
       return NextResponse.json({ error: 'Private key not provided' }, { status: 400 })
+    }
+
+    // Validate private key is a hex string
+    if (!/^[0-9a-fA-F]+$/.test(privateKey)) {
+      return NextResponse.json({ error: 'Invalid private key format' }, { status: 400 })
     }
 
     const data = new Uint8Array(await file.arrayBuffer())
@@ -34,7 +39,7 @@ export async function POST(req: NextRequest) {
       const chunk = data.slice(offset, offset + chunkLength)
       offset += chunkLength
 
-      const decrypted = decrypt(key, chunk)
+      const decrypted = decrypt(Buffer.from(privateKey, 'hex'), chunk)
       decryptedChunks.push(decrypted)
       totalDecryptedLength += decrypted.length
     }
@@ -54,8 +59,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Decryption failed' },
-      { status: 500 }
-    )
+      { status: 500 })
   }
 }
 
