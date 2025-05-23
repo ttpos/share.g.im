@@ -90,7 +90,7 @@ self.onmessage = async (e: MessageEvent) => {
         offset += chunk.byteLength
       }
 
-      let decryptedChunks: Uint8Array[] = []
+      const decryptedChunks: Uint8Array[] = []
       let totalDecryptedLength = 0
 
       if (isTextMode) {
