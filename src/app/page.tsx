@@ -9,6 +9,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Toaster, toast } from 'sonner'
 
 import FeaturesSection from '@/components/FeaturesSection'
+import { FileInfoDisplay } from '@/components/FileInfoDisplay'
 import GradientText from '@/components/reactbits/GradientText'
 import ShinyText from '@/components/reactbits/ShinyText'
 import { Button } from '@/components/ui/button'
@@ -42,8 +43,8 @@ export default function Home() {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [textInput, setTextInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [autoDownload, setAutoDownload] = useState(true)
-  const [inputMode, setInputMode] = useState<'file' | 'text'>('file')
+  const [autoDownload, setAutoDownload] = useState(false)
+  const [inputMode, setInputMode] = useState<'file' | 'message'>('file')
   const [encryptedText, setEncryptedText] = useState('')
   const [encryptedData, setEncryptedData] = useState<ArrayBuffer | null>(null) // Store original encrypted data
   const [decryptedText, setDecryptedText] = useState('') // Store decrypted text for dialog
@@ -87,14 +88,6 @@ export default function Home() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
   const handleFileSelect = useCallback((file: File | null) => {
     setSelectedFile(file)
     if (file) {
@@ -129,6 +122,20 @@ export default function Home() {
       toast.success('File downloaded')
     }
   }, [decryptedData])
+
+  const handleDownload = useCallback(() => {
+    if (encryptedData && fileInfo) {
+      const filename = `${fileInfo.name}.enc`
+      downloadFile(encryptedData, filename)
+      toast.success('Encrypted file downloaded successfully')
+    } else if (decryptedData && fileInfo) {
+      const filename = fileInfo.name.endsWith('.enc') 
+        ? fileInfo.name.slice(0, -4) 
+        : fileInfo.name
+      downloadFile(decryptedData, filename)
+      toast.success('Decrypted file downloaded successfully')
+    }
+  }, [encryptedData, decryptedData, fileInfo])
 
   const readFileChunk = (file: File, offset: number, chunkSize: number): Promise<ArrayBuffer> => {
     return new Promise((resolve, reject) => {
@@ -184,13 +191,13 @@ export default function Home() {
     return input.split(' ').length >= 12
   }
 
-  const handleCopyText = async (text: string) => {
+  const handleCopyText = async (message: string) => {
     try {
-      await navigator.clipboard.writeText(text)
+      await navigator.clipboard.writeText(message)
       toast.success('Text copied to clipboard!')
     } catch (error) {
-      console.error('Failed to copy text:', error)
-      toast.error('Failed to copy text')
+      console.error('Failed to copy message:', error)
+      toast.error('Failed to copy message')
     }
   }
 
@@ -204,6 +211,7 @@ export default function Home() {
     setDecryptedText('')
     setDecryptedData(null)
     setIsDialogOpen(false)
+    setIsProcessing(false)
   }
 
   const processInput = async (mode: 'encrypt' | 'decrypt') => {
@@ -212,8 +220,8 @@ export default function Home() {
       return
     }
 
-    if (inputMode === 'text' && !textInput.trim()) {
-      toast.error('Please enter text to process')
+    if (inputMode === 'message' && !textInput.trim()) {
+      toast.error('Please input the message for processing')
       return
     }
 
@@ -286,23 +294,22 @@ export default function Home() {
             filename: selectedFile.name,
             publicKey,
             privateKey,
-            isTextMode: false // Indicate file mode
+            isTextMode: false
           })
         })
 
         if (autoDownload) {
           downloadFile(result.data, result.filename)
-        } else if (mode === 'encrypt') {
-          setEncryptedData(result.data)
-          setEncryptedText(Buffer.from(result.data).toString('base64'))
-          setIsDialogOpen(true)
-        } else if (mode === 'decrypt') {
-          setDecryptedData(result.data)
-          setDecryptedText(new TextDecoder().decode(result.data))
-          setIsDialogOpen(true)
+          toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
+        } else {
+          if (mode === 'encrypt') {
+            setEncryptedData(result.data)
+          } else {
+            setDecryptedData(result.data)
+          }
+          toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
         }
-        toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
-      } else if (inputMode === 'text') {
+      } else if (inputMode === 'message') {
         let chunks: ArrayBuffer[] = []
         if (mode === 'encrypt') {
           const textBuffer = new TextEncoder().encode(textInput)
@@ -328,23 +335,24 @@ export default function Home() {
             filename: mode === 'encrypt' ? 'encrypted_text.txt.enc' : 'decrypted_text.txt',
             publicKey,
             privateKey,
-            isTextMode: true // Indicate text mode
+            isTextMode: true
           })
         })
 
-        if (mode === 'encrypt' && !autoDownload) {
-          // Convert ArrayBuffer to Base64 for readable display
-          const encrypted = Buffer.from(result.data).toString('base64')
-          setEncryptedText(encrypted)
-          setEncryptedData(result.data) // Store the original encrypted data
-          setIsDialogOpen(true)
-        } else if (autoDownload) {
+        if (!autoDownload) {
+          if (mode === 'encrypt') {
+            const encrypted = Buffer.from(result.data).toString('base64')
+            setEncryptedText(encrypted)
+            setEncryptedData(result.data)
+            setIsDialogOpen(true)
+          } else {
+            const decrypted = new TextDecoder().decode(result.data)
+            setDecryptedText(decrypted)
+            setDecryptedData(result.data)
+            setIsDialogOpen(true)
+          }
+        } else {
           downloadFile(result.data, result.filename)
-        } else if (mode === 'decrypt') {
-          const decrypted = new TextDecoder().decode(result.data)
-          setDecryptedText(decrypted)
-          setDecryptedData(result.data)
-          setIsDialogOpen(true)
         }
         toast.success(`Text ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
       }
@@ -363,7 +371,7 @@ export default function Home() {
             SecureVault
           </GradientText>
           <ShinyText
-            text="ECIES File & Text Encryption Tool"
+            text="ECIES File & Message Encryption Tool"
             disabled={false}
             speed={3}
             className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium"
@@ -402,12 +410,12 @@ export default function Home() {
                       File
                     </Button>
                     <Button
-                      variant={inputMode === 'text' ? 'default' : 'outline'}
-                      onClick={() => setInputMode('text')}
+                      variant={inputMode === 'message' ? 'default' : 'outline'}
+                      onClick={() => setInputMode('message')}
                       className="flex-1 flex items-center justify-center text-white"
                     >
                       <FileText className="w-4 h-4" />
-                      Text
+                      Messages
                     </Button>
                   </div>
                 </div>
@@ -462,34 +470,17 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    {fileInfo && (
-                      <div className="rounded-xl bg-gray-50/50 dark:bg-gray-800/30 p-3 sm:p-4 text-xs sm:text-sm space-y-3 sm:space-y-4 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          <div className="space-y-1.5 sm:space-y-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Filename</span>
-                            <p className="font-semibold text-gray-700 dark:text-gray-300 truncate">{fileInfo.name}</p>
-                          </div>
-                          <div className="space-y-1.5 sm:space-y-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Size</span>
-                            <p className="font-semibold text-gray-700 dark:text-gray-300">{formatFileSize(fileInfo.size)}</p>
-                          </div>
-                          <div className="sm:col-span-2 space-y-1.5 sm:space-y-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Type</span>
-                            <p className="font-semibold text-gray-700 dark:text-gray-300">{fileInfo.type}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {fileInfo && <FileInfoDisplay fileInfo={fileInfo} />}
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Input Text
+                      Message
                     </Label>
                     <Textarea
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="Enter text to encrypt"
+                      placeholder="Enter the message to be encrypted"
                       className="min-h-[100px] font-mono text-sm"
                     />
                   </div>
@@ -509,7 +500,7 @@ export default function Home() {
                   <Button
                     variant="default"
                     size="lg"
-                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'text' && !textInput.trim()) || !keyInput || isProcessing}
+                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !keyInput || isProcessing}
                     onClick={() => processInput('encrypt')}
                     className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-400/30 hover:shadow-blue-500/40"
                   >
@@ -520,10 +511,8 @@ export default function Home() {
                     <Button
                       variant="default"
                       size="lg"
-                      disabled={isProcessing}
-                      onClick={() => {
-                        toast.info('Manual download not yet implemented')
-                      }}
+                      disabled={isProcessing || (!encryptedData && !decryptedData)}
+                      onClick={handleDownload}
                       className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
                     >
                       <Download className="w-5 h-5" />
@@ -549,12 +538,12 @@ export default function Home() {
                       File
                     </Button>
                     <Button
-                      variant={inputMode === 'text' ? 'default' : 'outline'}
-                      onClick={() => setInputMode('text')}
+                      variant={inputMode === 'message' ? 'default' : 'outline'}
+                      onClick={() => setInputMode('message')}
                       className="flex-1 flex items-center justify-center text-white"
                     >
                       <FileText className="w-4 h-4" />
-                      Text
+                      Messages
                     </Button>
                   </div>
                 </div>
@@ -609,34 +598,17 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    {fileInfo && (
-                      <div className="rounded-xl bg-gray-50/50 dark:bg-gray-800/30 p-3 sm:p-4 text-xs sm:text-sm space-y-3 sm:space-y-4 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          <div className="space-y-1.5 sm:space-y-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Filename</span>
-                            <p className="font-semibold text-gray-700 dark:text-gray-300 truncate">{fileInfo.name}</p>
-                          </div>
-                          <div className="space-y-1.5 sm:space-y-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Size</span>
-                            <p className="font-semibold text-gray-700 dark:text-gray-300">{formatFileSize(fileInfo.size)}</p>
-                          </div>
-                          <div className="sm:col-span-2 space-y-1.5 sm:space-y-2">
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Type</span>
-                            <p className="font-semibold text-gray-700 dark:text-gray-300">{fileInfo.type}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {fileInfo && <FileInfoDisplay fileInfo={fileInfo} />}
                   </div>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Input Text
+                      Message
                     </Label>
                     <Textarea
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="Enter encrypted text to decrypt"
+                      placeholder="Enter the message to be decrypted"
                       className="min-h-[100px] font-mono text-sm"
                     />
                   </div>
@@ -656,7 +628,7 @@ export default function Home() {
                   <Button
                     variant="default"
                     size="lg"
-                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'text' && !textInput.trim()) || !keyInput || isProcessing}
+                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !keyInput || isProcessing}
                     onClick={() => processInput('decrypt')}
                     className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
                   >
@@ -667,10 +639,8 @@ export default function Home() {
                     <Button
                       variant="default"
                       size="lg"
-                      disabled={isProcessing}
-                      onClick={() => {
-                        toast.info('Manual download not yet implemented')
-                      }}
+                      disabled={isProcessing || (!encryptedData && !decryptedData)}
+                      onClick={handleDownload}
                       className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
                     >
                       <Download className="w-5 h-5" />
@@ -711,47 +681,37 @@ export default function Home() {
               {isProcessing ? 'Processing...' : encryptedText ? 'Encrypted Text' : 'Decrypted Text'}
             </DialogTitle>
             <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
-              {encryptedText ? 'Your text has been encrypted successfully' : 'Your text has been decrypted successfully'}
+              {encryptedText ? 'Your message has been encrypted successfully' : 'Your message has been decrypted successfully'}
             </DialogDescription>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto py-1 sm:py-2 space-y-3 sm:space-y-4">
             <div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="filename" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Filename</Label>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
-                  onClick={encryptedText ? handleDownloadEncrypted : handleDownloadDecrypted}
-                  disabled={!encryptedData && !decryptedData}
-                >
-                  <Download className="h-3 w-3" />
-                  Download
-                </Button>
-              </div>
-              <Input
-                id="filename"
-                value={encryptedText ? 'encrypted_text.txt.enc' : 'decrypted_text.txt'}
-                readOnly
-                className="font-mono text-xs sm:text-sm mt-1 sm:mt-1.5 h-8 sm:h-10 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-              />
-            </div>
-            
-            <div>
-              <div className="flex items-center justify-between">
                 <Label htmlFor="content" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                   {encryptedText ? 'Encrypted Content' : 'Decrypted Content'}
                 </Label>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
-                  onClick={() => handleCopyText(encryptedText || decryptedText)}
-                >
-                  <Clipboard className="h-3 w-3" />
-                  Copy content
-                </Button>
+                <div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
+                    onClick={encryptedText ? handleDownloadEncrypted : handleDownloadDecrypted}
+                    disabled={!encryptedData && !decryptedData}
+                  >
+                    <Download className="h-3 w-3" />
+                    <span className="hidden sm:inline">Download</span>
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
+                    onClick={() => handleCopyText(encryptedText || decryptedText)}
+                  >
+                    <Clipboard className="h-3 w-3" />
+                    <span className="hidden sm:inline">Copy content</span>
+                  </Button>
+                </div>
               </div>
               <Textarea
                 id="content"
@@ -764,7 +724,7 @@ export default function Home() {
           <DialogFooter className="shrink-0 border-t pt-3 sm:pt-4 mt-1 sm:mt-2">
             <div className="flex flex-col-reverse sm:flex-row sm:justify-between w-full items-center gap-2 sm:gap-0">
               <div className="text-xs text-gray-500 dark:text-gray-400 w-full sm:w-auto text-center sm:text-left">
-                <span>Share this {encryptedText ? 'encrypted' : 'decrypted'} text securely</span>
+                <span>Share this {encryptedText ? 'encrypted' : 'decrypted'} message securely</span>
               </div>
               <Button
                 variant="outline"
