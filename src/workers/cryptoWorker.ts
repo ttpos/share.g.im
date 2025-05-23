@@ -1,5 +1,7 @@
 import { encrypt, decrypt } from 'eciesjs'
 
+import { validateBase58PublicKey } from '@/lib/utils'
+
 self.onmessage = async (e: MessageEvent) => {
   const { mode, chunks, filename, publicKey, privateKey } = e.data
 
@@ -8,14 +10,17 @@ self.onmessage = async (e: MessageEvent) => {
       if (!publicKey) {
         throw new Error('Public key not provided')
       }
-      if (!/^[0-9a-fA-F]+$/.test(publicKey)) {
-        throw new Error('Invalid public key format')
+
+      const validation = validateBase58PublicKey(publicKey)
+      if (!validation.isValid) {
+        throw new Error(validation.error)
       }
+      const pubKeyBytes = validation.pubKeyBytes!
 
       // Encrypt each chunk
       const encryptedChunks: Uint8Array[] = []
       for (const chunk of chunks) {
-        const encrypted = encrypt(Buffer.from(publicKey, 'hex'), Buffer.from(chunk))
+        const encrypted = encrypt(pubKeyBytes, Buffer.from(chunk))
         encryptedChunks.push(encrypted)
       }
 
@@ -48,7 +53,7 @@ self.onmessage = async (e: MessageEvent) => {
       self.postMessage({ 
         data: { 
           data: resultArray.buffer, 
-          filename: filename + '.encrypted' 
+          filename: filename + '.enc' 
         } 
       })
     } else if (mode === 'decrypt') {
@@ -63,7 +68,7 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       // Combine chunks into a single buffer
-      let totalLength = chunks.reduce((sum: number, chunk: ArrayBuffer) => sum + chunk.byteLength, 0)
+      const totalLength = chunks.reduce((sum: number, chunk: ArrayBuffer) => sum + chunk.byteLength, 0)
       const combinedData = new Uint8Array(totalLength)
       let offset = 0
       for (const chunk of chunks) {
@@ -116,7 +121,7 @@ self.onmessage = async (e: MessageEvent) => {
           decryptedChunks.push(decrypted)
           totalDecryptedLength += decrypted.length
         } catch (err) {
-          throw new Error(`Decryption failed: ${err.message || 'Invalid private key or corrupted chunk'}`)
+          throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Invalid private key or corrupted chunk'}`)
         }
       }
 
