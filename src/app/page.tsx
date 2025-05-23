@@ -20,11 +20,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { cn, validateBase58PublicKey } from '@/lib/utils'
-
-// Default derivation path for key generation
-// eslint-disable-next-line quotes
-const DEFAULT_DERIVATION_PATH = "m/44'/0'/0'/0/0"
+import { cn, DEFAULT_DERIVATION_PATH, validateBase58PublicKey } from '@/lib/utils'
 
 interface FileInfo {
   name: string

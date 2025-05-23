@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Default derivation path for key generation
+// eslint-disable-next-line quotes
+export const DEFAULT_DERIVATION_PATH = "m/44'/0'/0'/0/0"
+
 export function formatFileSize(bytes: number) {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
