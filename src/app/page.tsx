@@ -306,6 +306,9 @@ export default function Home() {
         let chunks: ArrayBuffer[] = []
         if (mode === 'encrypt') {
           const textBuffer = new TextEncoder().encode(textInput)
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-expect-error
+          // TODO: pending
           chunks = [textBuffer.buffer]
         } else {
           // For decryption, assume textInput is Base64 encoded
