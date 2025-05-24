@@ -15,14 +15,9 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  generateTimestamp,
-  getFileExtension,
-  getFilenameWithoutExtension
-} from '@/lib/utils'
+import { generateTimestamp, getFilenameWithoutExtension } from '@/lib/utils'
 import { FileInfo } from '@/types'
 
 export default function PasswordPage() {
@@ -31,7 +26,6 @@ export default function PasswordPage() {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [textInput, setTextInput] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [autoDownload, setAutoDownload] = useState(false)
   const [inputMode, setInputMode] = useState<'file' | 'message'>('file')
   const [encryptedText, setEncryptedText] = useState('')
   const [encryptedData, setEncryptedData] = useState<ArrayBuffer | null>(null)
@@ -203,24 +197,15 @@ export default function PasswordPage() {
           })
         })
 
-        if (autoDownload) {
-          const timestamp = generateTimestamp()
-          const downloadFilename = mode === 'encrypt'
-            ? `${getFilenameWithoutExtension(selectedFile.name)}_${timestamp}.enc`
-            : `${timestamp}.${result.originalExtension || getFileExtension(selectedFile.name.replace('.enc', ''))}`
-          downloadFile(result.data, downloadFilename)
-          toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
+        if (mode === 'encrypt') {
+          setEncryptedData(result.data)
         } else {
-          if (mode === 'encrypt') {
-            setEncryptedData(result.data)
-          } else {
-            setDecryptedData(result.data)
-            if (result.originalExtension) {
-              setFileInfo(prev => prev ? { ...prev, originalExtension: result.originalExtension } : null)
-            }
+          setDecryptedData(result.data)
+          if (result.originalExtension) {
+            setFileInfo(prev => prev ? { ...prev, originalExtension: result.originalExtension } : null)
           }
-          toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
         }
+        toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
       } else if (inputMode === 'message') {
         let chunks: ArrayBuffer[] = []
         if (mode === 'encrypt') {
@@ -269,20 +254,16 @@ export default function PasswordPage() {
           })
         })
 
-        if (!autoDownload) {
-          if (mode === 'encrypt') {
-            const encrypted = Buffer.from(result.data).toString('base64')
-            setEncryptedText(encrypted)
-            setEncryptedData(result.data)
-            setIsDialogOpen(true)
-          } else {
-            const decrypted = new TextDecoder().decode(result.data)
-            setDecryptedText(decrypted)
-            setDecryptedData(result.data)
-            setIsDialogOpen(true)
-          }
+        if (mode === 'encrypt') {
+          const encrypted = Buffer.from(result.data).toString('base64')
+          setEncryptedText(encrypted)
+          setEncryptedData(result.data)
+          setIsDialogOpen(true)
         } else {
-          downloadFile(result.data, result.filename)
+          const decrypted = new TextDecoder().decode(result.data)
+          setDecryptedText(decrypted)
+          setDecryptedData(result.data)
+          setIsDialogOpen(true)
         }
         toast.success(`Text ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
       }
@@ -404,17 +385,6 @@ export default function PasswordPage() {
                     />
                   </div>
                 )}
-                <div className="flex items-center justify-end space-x-2">
-                  <Label htmlFor="auto-download-switch">
-                    Auto Download {autoDownload ? 'Enabled' : 'Disabled'}
-                  </Label>
-                  <Switch
-                    id="auto-download-switch"
-                    checked={autoDownload}
-                    onCheckedChange={setAutoDownload}
-                    className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
-                  />
-                </div>
                 <div className="flex gap-2">
                   <Button
                     variant="default"
@@ -426,18 +396,16 @@ export default function PasswordPage() {
                     <Lock className="w-5 h-5" />
                     Encrypt
                   </Button>
-                  {!autoDownload && (
-                    <Button
-                      variant="default"
-                      size="lg"
-                      disabled={isProcessing || (!encryptedData && !decryptedData)}
-                      onClick={handleDownload}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
-                    >
-                      <Download className="w-5 h-5" />
-                      Download
-                    </Button>
-                  )}
+                  <Button
+                    variant="default"
+                    size="lg"
+                    disabled={isProcessing || (!encryptedData && !decryptedData)}
+                    onClick={handleDownload}
+                    className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
+                  >
+                    <Download className="w-5 h-5" />
+                    Download
+                  </Button>
                 </div>
               </div>
             </TabsContent>
@@ -503,17 +471,6 @@ export default function PasswordPage() {
                     />
                   </div>
                 )}
-                <div className="flex items-center justify-end space-x-2">
-                  <Label htmlFor="auto-download-switch">
-                    Auto Download {autoDownload ? 'Enabled' : 'Disabled'}
-                  </Label>
-                  <Switch
-                    id="auto-download-switch"
-                    checked={autoDownload}
-                    onCheckedChange={setAutoDownload}
-                    className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
-                  />
-                </div>
                 <div className="flex gap-2">
                   <Button
                     variant="default"
@@ -525,18 +482,16 @@ export default function PasswordPage() {
                     <Unlock className="w-5 h-5" />
                     Decrypt
                   </Button>
-                  {!autoDownload && (
-                    <Button
-                      variant="default"
-                      size="lg"
-                      disabled={isProcessing || (!encryptedData && !decryptedData)}
-                      onClick={handleDownload}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
-                    >
-                      <Download className="w-5 h-5" />
-                      Download
-                    </Button>
-                  )}
+                  <Button
+                    variant="default"
+                    size="lg"
+                    disabled={isProcessing || (!encryptedData && !decryptedData)}
+                    onClick={handleDownload}
+                    className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
+                  >
+                    <Download className="w-5 h-5" />
+                    Download
+                  </Button>
                 </div>
               </div>
             </TabsContent>
