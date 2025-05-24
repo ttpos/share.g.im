@@ -97,14 +97,6 @@ export default function Home() {
     }
   }, [])
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    const files = e.dataTransfer.files
-    if (files.length > 0) {
-      handleFileSelect(files[0])
-    }
-  }, [handleFileSelect])
-
   const handleDownloadEncrypted = useCallback(() => {
     if (encryptedData) {
       downloadFile(encryptedData, 'encrypted_text.txt.enc')
@@ -375,6 +367,13 @@ export default function Home() {
         </CardHeader>
 
         <CardContent className="px-2 sm:px-4 space-y-6 sm:space-y-8">
+          {/* Hidden file input */}
+          <Input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+          />
           <Tabs defaultValue="encrypt" className="w-full" onValueChange={clearState}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="encrypt" className="flex items-center gap-2">
@@ -390,6 +389,7 @@ export default function Home() {
                 Keys
               </TabsTrigger>
             </TabsList>
+            
             <TabsContent value="encrypt">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -399,7 +399,11 @@ export default function Home() {
                   <div className="flex gap-2">
                     <Button
                       variant={inputMode === 'file' ? 'default' : 'outline'}
-                      onClick={() => setInputMode('file')}
+                      onClick={() => {
+                        setInputMode('file')
+                        // Trigger file selection immediately when File mode is selected
+                        setTimeout(() => fileInputRef.current?.click(), 100)
+                      }}
                       className="flex-1 flex items-center justify-center text-white"
                     >
                       <Upload className="w-4 h-4" />
@@ -415,6 +419,7 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
+                
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                     Public Key
@@ -429,45 +434,18 @@ export default function Home() {
                     />
                   </div>
                 </div>
+
                 {inputMode === 'file' ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Select File
-                    </Label>
-                    <div className="relative group">
-                      <Input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
-                      />
-                      <div
-                        className={cn(
-                          'relative overflow-hidden rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer',
-                          fileInfo
-                            ? 'border-blue-400 dark:border-blue-500 bg-blue-50/30 dark:bg-blue-900/20'
-                            : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50/50 dark:hover:bg-gray-800/30'
-                        )}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDragLeave={(e) => e.preventDefault()}
-                        onDrop={handleDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <div className="flex flex-col items-center justify-center p-6 sm:p-8 transition-transform duration-300 group-hover:scale-105">
-                          <Upload
-                            className={cn(
-                              'w-10 h-10 sm:w-12 sm:h-12 mb-3',
-                              fileInfo ? 'text-blue-500' : 'text-gray-400'
-                            )}
-                          />
-                          <span className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 text-center font-medium">
-                            {fileInfo ? `Selected: ${fileInfo.name}` : 'Click to select or drag and drop a file'}
-                          </span>
-                        </div>
+                  <>
+                    {fileInfo && (
+                      <div className="space-y-3 sm:space-y-4">
+                        <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                          Selected File
+                        </Label>
+                        <FileInfoDisplay fileInfo={fileInfo} />
                       </div>
-                    </div>
-                    {fileInfo && <FileInfoDisplay fileInfo={fileInfo} />}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
@@ -481,6 +459,7 @@ export default function Home() {
                     />
                   </div>
                 )}
+                
                 <div className="flex items-center justify-end space-x-2">
                   <Label htmlFor="auto-download-switch">
                     Auto Download {autoDownload ? 'Enabled' : 'Disabled'}
@@ -492,6 +471,7 @@ export default function Home() {
                     className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
                   />
                 </div>
+                
                 <div className="flex gap-2">
                   <Button
                     variant="default"
@@ -518,6 +498,7 @@ export default function Home() {
                 </div>
               </div>
             </TabsContent>
+            
             <TabsContent value="decrypt">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -527,7 +508,11 @@ export default function Home() {
                   <div className="flex gap-2">
                     <Button
                       variant={inputMode === 'file' ? 'default' : 'outline'}
-                      onClick={() => setInputMode('file')}
+                      onClick={() => {
+                        setInputMode('file')
+                        // Trigger file selection immediately when File mode is selected
+                        setTimeout(() => fileInputRef.current?.click(), 100)
+                      }}
                       className="flex-1 flex items-center justify-center text-white"
                     >
                       <Upload className="w-4 h-4" />
@@ -557,54 +542,27 @@ export default function Home() {
                     />
                   </div>
                 </div>
+
                 {inputMode === 'file' ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Select File
-                    </Label>
-                    <div className="relative group">
-                      <Input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
-                      />
-                      <div
-                        className={cn(
-                          'relative overflow-hidden rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer',
-                          fileInfo
-                            ? 'border-green-400 dark:border-green-500 bg-green-50/30 dark:bg-green-900/20'
-                            : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50/50 dark:hover:bg-gray-800/30'
-                        )}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDragLeave={(e) => e.preventDefault()}
-                        onDrop={handleDrop}
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <div className="flex flex-col items-center justify-center p-6 sm:p-8 transition-transform duration-300 group-hover:scale-105">
-                          <Upload
-                            className={cn(
-                              'w-10 h-10 sm:w-12 sm:h-12 mb-3',
-                              fileInfo ? 'text-green-500' : 'text-gray-400'
-                            )}
-                          />
-                          <span className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 text-center font-medium">
-                            {fileInfo ? `Selected: ${fileInfo.name}` : 'Click to select or drag and drop a file'}
-                          </span>
-                        </div>
+                  <>
+                    {fileInfo && (
+                      <div className="space-y-3 sm:space-y-4">
+                        <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                          Selected File
+                        </Label>
+                        <FileInfoDisplay fileInfo={fileInfo} />
                       </div>
-                    </div>
-                    {fileInfo && <FileInfoDisplay fileInfo={fileInfo} />}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Message
+      Message
                     </Label>
                     <Textarea
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="Enter the message to be decrypted"
+                      placeholder="Enter the message to be encrypted"
                       className="min-h-[100px] font-mono text-sm"
                     />
                   </div>
