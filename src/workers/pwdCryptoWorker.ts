@@ -1,3 +1,7 @@
+import { gcm } from '@noble/ciphers/aes.js'
+import { randomBytes } from '@noble/ciphers/webcrypto.js'
+import { argon2id } from '@noble/hashes/argon2.js'
+
 import { getFileExtension, getFilenameWithoutExtension } from '@/lib/utils'
 
 interface WorkerInput {
@@ -7,30 +11,6 @@ interface WorkerInput {
   encryptionMode: 'password';
   filename: string;
   isTextMode: boolean;
-}
-
-// Deriving key from password using PBKDF2
-async function deriveKeyFromPassword(password: string, salt: Uint8Array): Promise<CryptoKey> {
-  const passwordBuffer = new TextEncoder().encode(password)
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    passwordBuffer,
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  )
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: 100000,
-      hash: 'SHA-256'
-    },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    true,
-    ['encrypt', 'decrypt']
-  )
 }
 
 // Web Worker for password-based encryption/decryption tasks
@@ -49,21 +29,19 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
 
     if (mode === 'encrypt') {
       self.postMessage({ progress: 10, stage: 'Deriving key from password...' })
-      const salt = crypto.getRandomValues(new Uint8Array(16))
-      const iv = crypto.getRandomValues(new Uint8Array(12))
-      const key = await deriveKeyFromPassword(password, salt)
+      const salt = randomBytes(16)
+      const iv = randomBytes(12)
+      const key = argon2id(password, salt, { t: 2, m: 65536, p: 1, maxmem: 2 ** 32 - 1 })
+      const aes = gcm(key, iv)
 
       self.postMessage({ progress: 20, stage: 'Encrypting data...' })
 
       const encryptedChunks: Uint8Array[] = []
       const totalChunks = chunks.length
+
       for (let i = 0; i < chunks.length; i++) {
-        const encrypted = await crypto.subtle.encrypt(
-          { name: 'AES-GCM', iv },
-          key,
-          chunks[i]
-        )
-        encryptedChunks.push(new Uint8Array(encrypted))
+        const ciphertext = aes.encrypt(new Uint8Array(chunks[i]))
+        encryptedChunks.push(ciphertext)
         self.postMessage({ progress: 20 + ((i + 1) / totalChunks) * 60 })
       }
 
@@ -151,19 +129,17 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         const encryptedData = combinedData.slice(29)
 
         self.postMessage({ progress: 40, stage: 'Deriving key from password...' })
-        const key = await deriveKeyFromPassword(password, salt)
+        const key = argon2id(password, salt, { t: 2, m: 65536, p: 1, maxmem: 2 ** 32 - 1 })
+        const aes = gcm(key, iv)
 
         self.postMessage({ progress: 60, stage: 'Decrypting data...' })
         try {
-          const decrypted = await crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            encryptedData
-          )
-          decryptedChunks.push(new Uint8Array(decrypted))
-          totalDecryptedLength += decrypted.byteLength
+          const decrypted = aes.decrypt(encryptedData)
+          decryptedChunks.push(decrypted)
+          totalDecryptedLength += decrypted.length
           self.postMessage({ progress: 90, stage: 'Preparing decrypted text...' })
         } catch (err) {
+          console.error('Decryption error:', err)
           throw new Error('Decryption failed: Invalid password or corrupted data')
         }
       } else {
@@ -191,7 +167,8 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         offset += 12
 
         self.postMessage({ progress: 40, stage: 'Deriving key from password...' })
-        const key = await deriveKeyFromPassword(password, salt)
+        const key = argon2id(password, salt, { t: 2, m: 65536, p: 1, maxmem: 2 ** 32 - 1 })
+        const aes = gcm(key, iv)
 
         self.postMessage({ progress: 50, stage: 'Extracting encrypted data...' })
 
@@ -213,15 +190,12 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         const totalChunks = encryptedChunks.length
         for (let i = 0; i < encryptedChunks.length; i++) {
           try {
-            const decrypted = await crypto.subtle.decrypt(
-              { name: 'AES-GCM', iv },
-              key,
-              encryptedChunks[i]
-            )
-            decryptedChunks.push(new Uint8Array(decrypted))
-            totalDecryptedLength += decrypted.byteLength
+            const decrypted = aes.decrypt(encryptedChunks[i])
+            decryptedChunks.push(decrypted)
+            totalDecryptedLength += decrypted.length
             self.postMessage({ progress: 60 + ((i + 1) / totalChunks) * 30 })
           } catch (err) {
+            console.error('Decryption error:', err)
             throw new Error('Decryption failed: Invalid password or corrupted chunk')
           }
         }
