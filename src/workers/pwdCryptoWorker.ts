@@ -13,6 +13,8 @@ interface WorkerInput {
   isTextMode: boolean;
 }
 
+const argonOpts = { t: 2, m: 10, p: 1, maxmem: 2 ** 32 - 1 }
+
 // Web Worker for password-based encryption/decryption tasks
 self.onmessage = async (e: MessageEvent<WorkerInput>) => {
   const { mode, chunks, password, encryptionMode, filename, isTextMode } = e.data
@@ -31,8 +33,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
       self.postMessage({ progress: 10, stage: 'Deriving key from password...' })
       const salt = randomBytes(16)
       const iv = randomBytes(12)
-      const key = argon2id(password, salt, { t: 2, m: 65536, p: 1, maxmem: 2 ** 32 - 1 })
-      const aes = gcm(key, iv)
+      const key = argon2id(password, salt, argonOpts)
 
       self.postMessage({ progress: 20, stage: 'Encrypting data...' })
 
@@ -40,6 +41,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
       const totalChunks = chunks.length
 
       for (let i = 0; i < chunks.length; i++) {
+        const aes = gcm(key, iv)
         const ciphertext = aes.encrypt(new Uint8Array(chunks[i]))
         encryptedChunks.push(ciphertext)
         self.postMessage({ progress: 20 + ((i + 1) / totalChunks) * 60 })
@@ -129,7 +131,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         const encryptedData = combinedData.slice(29)
 
         self.postMessage({ progress: 40, stage: 'Deriving key from password...' })
-        const key = argon2id(password, salt, { t: 2, m: 65536, p: 1, maxmem: 2 ** 32 - 1 })
+        const key = argon2id(password, salt, argonOpts)
         const aes = gcm(key, iv)
 
         self.postMessage({ progress: 60, stage: 'Decrypting data...' })
@@ -167,8 +169,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         offset += 12
 
         self.postMessage({ progress: 40, stage: 'Deriving key from password...' })
-        const key = argon2id(password, salt, { t: 2, m: 65536, p: 1, maxmem: 2 ** 32 - 1 })
-        const aes = gcm(key, iv)
+        const key = argon2id(password, salt, argonOpts)
 
         self.postMessage({ progress: 50, stage: 'Extracting encrypted data...' })
 
@@ -190,6 +191,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         const totalChunks = encryptedChunks.length
         for (let i = 0; i < encryptedChunks.length; i++) {
           try {
+            const aes = gcm(key, iv)
             const decrypted = aes.decrypt(encryptedChunks[i])
             decryptedChunks.push(decrypted)
             totalDecryptedLength += decrypted.length
