@@ -276,7 +276,11 @@ export default function Home() {
           toast.warning('Large file detected. Processing may be slow on client-side.')
         }
 
-        const result = await new Promise<{ data: ArrayBuffer; filename: string; originalExtension?: string }>((resolve, reject) => {
+        const result = await new Promise<{
+          data: ArrayBuffer;
+          filename: string;
+          originalExtension?: string;
+        }>((resolve, reject) => {
           worker.onmessage = (e: MessageEvent) => {
             const { data, error, progress, stage } = e.data
             if (error) {
@@ -328,11 +332,20 @@ export default function Home() {
           // TODO: pending
           chunks = [textBuffer.buffer]
         } else {
-          const decodedText = Buffer.from(textInput, 'base64')
-          chunks = [decodedText.buffer]
+          try {
+            const decodedText = Buffer.from(textInput.trim(), 'base64')
+            chunks = [decodedText.buffer]
+          } catch (error) {
+            console.error('Invalid Base64 input for decryption:', error)
+            throw new Error('Invalid Base64 input for decryption')
+          }
         }
 
-        const result = await new Promise<{ data: ArrayBuffer; filename: string }>((resolve, reject) => {
+        const result = await new Promise<{
+          data: ArrayBuffer;
+          filename: string;
+          originalExtension?: string;
+        }>((resolve, reject) => {
           worker.onmessage = (e: MessageEvent) => {
             const { data, error, progress, stage } = e.data
             if (error) {
