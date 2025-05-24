@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { Toaster } from 'sonner'
 
 import '@/app/globals.css'
 import { Providers } from '@/components/providers'
@@ -89,6 +90,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <BackgroundEffects />
           {children}
+          <Toaster
+            richColors
+            position="top-right"
+            duration={3000}
+          />
         </Providers>
       </body>
     </html>

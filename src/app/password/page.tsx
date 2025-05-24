@@ -1,12 +1,8 @@
 'use client'
 
-import { base58 } from '@scure/base'
-import { HDKey } from '@scure/bip32'
-import * as bip39 from '@scure/bip39'
-import { wordlist } from '@scure/bip39/wordlists/english'
-import { Upload, Lock, Unlock, Download, FileText, Key, Clipboard, ArrowLeftRight } from 'lucide-react'
+import { Upload, Lock, Unlock, Download, FileText, Clipboard, ArrowLeftRight } from 'lucide-react'
 import Link from 'next/link'
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import FeaturesSection from '@/components/FeaturesSection'
@@ -23,18 +19,14 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  DEFAULT_DERIVATION_PATH,
   generateTimestamp,
   getFileExtension,
-  getFilenameWithoutExtension,
-  validateBase58PublicKey
+  getFilenameWithoutExtension
 } from '@/lib/utils'
-import { FileInfo, KeyPair } from '@/types'
+import { FileInfo } from '@/types'
 
-// Main page component for file and message encryption/decryption
-export default function Home() {
-  // State for user inputs and processing
-  const [keyInput, setKeyInput] = useState('')
+export default function PasswordPage() {
+  const [password, setPassword] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [textInput, setTextInput] = useState('')
@@ -42,47 +34,20 @@ export default function Home() {
   const [autoDownload, setAutoDownload] = useState(false)
   const [inputMode, setInputMode] = useState<'file' | 'message'>('file')
   const [encryptedText, setEncryptedText] = useState('')
-  const [encryptedData, setEncryptedData] = useState<ArrayBuffer | null>(null) // Store original encrypted data
-  const [decryptedText, setDecryptedText] = useState('') // Store decrypted text for dialog
-  const [decryptedData, setDecryptedData] = useState<ArrayBuffer | null>(null) // Store decrypted data for download
+  const [encryptedData, setEncryptedData] = useState<ArrayBuffer | null>(null)
+  const [decryptedText, setDecryptedText] = useState('')
+  const [decryptedData, setDecryptedData] = useState<ArrayBuffer | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingStage, setProcessingStage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const workerRef = useRef<Worker | null>(null)
 
-  // Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../workers/cryptoWorker.ts', import.meta.url))
+    workerRef.current = new Worker(new URL('../../workers/pwdCryptoWorker.ts', import.meta.url))
     return () => workerRef.current?.terminate()
   }, [])
 
-  // Extract public key from URL hash
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#\/?/, '')
-      if (hash.startsWith('pub/')) {
-        const pubKey = hash.substring(4)
-        if (pubKey && isBase58String(pubKey)) {
-          const validation = validateBase58PublicKey(pubKey)
-          if (validation.isValid) {
-            setKeyInput(pubKey)
-          } else {
-            toast.error('Invalid public key in URL')
-            setKeyInput('')
-          }
-        } else {
-          setKeyInput('')
-        }
-      }
-    }
-
-    handleHashChange()
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [])
-
-  // Handle file selection
   const handleFileSelect = useCallback((file: File | null) => {
     setSelectedFile(file)
     if (file) {
@@ -96,7 +61,6 @@ export default function Home() {
     }
   }, [])
 
-  // Download encrypted data
   const handleDownloadEncrypted = useCallback(() => {
     if (encryptedData) {
       const timestamp = generateTimestamp()
@@ -105,7 +69,6 @@ export default function Home() {
     }
   }, [encryptedData])
 
-  // Download decrypted data
   const handleDownloadDecrypted = useCallback(() => {
     if (decryptedData) {
       const timestamp = generateTimestamp()
@@ -114,7 +77,6 @@ export default function Home() {
     }
   }, [decryptedData])
 
-  // Handle file download with appropriate naming
   const handleDownload = useCallback(() => {
     if (encryptedData && fileInfo) {
       const timestamp = generateTimestamp()
@@ -129,7 +91,6 @@ export default function Home() {
     }
   }, [encryptedData, decryptedData, fileInfo])
 
-  // Read file as chunks
   const readFileChunk = (file: File, offset: number, chunkSize: number): Promise<ArrayBuffer> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
@@ -140,7 +101,6 @@ export default function Home() {
     })
   }
 
-  // Download data as a file
   const downloadFile = (data: ArrayBuffer, filename: string) => {
     const blob = new Blob([data])
     const url = URL.createObjectURL(blob)
@@ -154,39 +114,6 @@ export default function Home() {
     URL.revokeObjectURL(url)
   }
 
-  // Derive key pair from mnemonic
-  const deriveKeyPair = (mnemonic: string): KeyPair => {
-    if (!bip39.validateMnemonic(mnemonic, wordlist)) {
-      throw new Error('Invalid mnemonic phrase')
-    }
-    const seed = bip39.mnemonicToSeedSync(mnemonic)
-    const masterNode = HDKey.fromMasterSeed(seed)
-    const key = masterNode.derive(DEFAULT_DERIVATION_PATH)
-    if (!key.privateKey || !key.publicKey) {
-      throw new Error('Failed to derive key pair')
-    }
-    return {
-      privateKey: Buffer.from(key.privateKey).toString('hex'),
-      publicKey: base58.encode(key.publicKey)
-    }
-  }
-
-  // Validate Base58 string
-  const isBase58String = (input: string): boolean => {
-    return /^[1-9A-HJ-NP-Za-km-z]+$/.test(input)
-  }
-
-  // Validate hex string
-  const isHexString = (input: string): boolean => {
-    return /^[0-9a-fA-F]+$/.test(input)
-  }
-
-  // Check if input is a mnemonic phrase
-  const isMnemonicPhrase = (input: string): boolean => {
-    return input.split(' ').length >= 12
-  }
-
-  // Copy text to clipboard
   const handleCopyText = async (message: string) => {
     try {
       await navigator.clipboard.writeText(message)
@@ -197,9 +124,8 @@ export default function Home() {
     }
   }
 
-  // Reset all states
   const clearState = () => {
-    setKeyInput('')
+    setPassword('')
     setSelectedFile(null)
     setFileInfo(null)
     setTextInput('')
@@ -213,7 +139,6 @@ export default function Home() {
     setProcessingStage('')
   }
 
-  // Process encryption or decryption
   const processInput = async (mode: 'encrypt' | 'decrypt') => {
     if (inputMode === 'file' && !selectedFile) {
       toast.error('Please select a file first')
@@ -223,8 +148,8 @@ export default function Home() {
       toast.error('Please input the message for processing')
       return
     }
-    if (!keyInput) {
-      toast.error(mode === 'decrypt' ? 'Please enter a private key or mnemonic phrase' : 'Please enter a public key')
+    if (!password) {
+      toast.error('Please enter a password')
       return
     }
 
@@ -233,38 +158,11 @@ export default function Home() {
     setProcessingStage('Initializing...')
 
     try {
-      // Validate and prepare keys
-      let publicKey: string | undefined
-      let privateKey: string | undefined
-      if (mode === 'encrypt') {
-        if (isBase58String(keyInput)) {
-          const validation = validateBase58PublicKey(keyInput)
-          if (!validation.isValid) {
-            throw new Error(validation.error)
-          }
-          publicKey = keyInput
-        } else {
-          throw new Error('Invalid input. Please enter a valid Base58 public key')
-        }
-      } else {
-        if (isHexString(keyInput)) {
-          if (keyInput.length !== 64) {
-            throw new Error('Invalid private key length. Must be 32 bytes (64 hex characters)')
-          }
-          privateKey = keyInput
-        } else if (isMnemonicPhrase(keyInput)) {
-          privateKey = deriveKeyPair(keyInput).privateKey
-        } else {
-          throw new Error('Invalid input. Please enter a valid private key (64 hex characters) or mnemonic phrase')
-        }
-      }
-
       const worker = workerRef.current
       if (!worker) throw new Error('Web Worker not initialized')
 
       if (inputMode === 'file' && selectedFile) {
-        // Process file input
-        const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB chunks
+        const CHUNK_SIZE = 5 * 1024 * 1024
         const chunks: ArrayBuffer[] = []
         const fileSize = selectedFile.size
         let offset = 0
@@ -299,8 +197,8 @@ export default function Home() {
             mode,
             chunks,
             filename: selectedFile.name,
-            publicKey,
-            privateKey,
+            password,
+            encryptionMode: 'password',
             isTextMode: false
           })
         })
@@ -324,14 +222,13 @@ export default function Home() {
           toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
         }
       } else if (inputMode === 'message') {
-        // Process text input
         let chunks: ArrayBuffer[] = []
         if (mode === 'encrypt') {
           const textBuffer = new TextEncoder().encode(textInput)
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-expect-error
           // TODO: pending
-          chunks = [textBuffer.buffer]
+          chunks = [textBuffer]
         } else {
           try {
             const decodedText = Buffer.from(textInput.trim(), 'base64')
@@ -366,8 +263,8 @@ export default function Home() {
             mode,
             chunks,
             filename,
-            publicKey,
-            privateKey,
+            password,
+            encryptionMode: 'password',
             isTextMode: true
           })
         })
@@ -405,7 +302,7 @@ export default function Home() {
     <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6">
       <Card className="w-full max-w-xl mx-auto border-none bg-card/20 backdrop-blur-lg p-4 sm:p-6 md:p-8 transition-all duration-300 rounded-2xl relative">
         <div className="absolute top-4 right-4">
-          <Link href='/password' passHref>
+          <Link href='/' passHref>
             <Button
               variant="outline"
               className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -416,10 +313,10 @@ export default function Home() {
         </div>
         <CardHeader className="text-center space-y-2 sm:space-y-3">
           <GradientText className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent flex items-center justify-center gap-2 sm:gap-3">
-            SecureVault
+            SecureVault - PWD
           </GradientText>
           <ShinyText
-            text="ECIES File & Message Encryption Tool"
+            text="AES File & Message Encryption Tool"
             disabled={false}
             speed={3}
             className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium"
@@ -427,7 +324,6 @@ export default function Home() {
         </CardHeader>
 
         <CardContent className="px-2 sm:px-4 space-y-6 sm:space-y-8">
-          {/* Hidden file input */}
           <Input
             type="file"
             ref={fileInputRef}
@@ -435,7 +331,7 @@ export default function Home() {
             onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
           />
           <Tabs defaultValue="encrypt" className="w-full" onValueChange={clearState}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="encrypt" className="flex items-center gap-2">
                 <Lock className="w-4 h-4" />
                 Encrypt
@@ -443,10 +339,6 @@ export default function Home() {
               <TabsTrigger value="decrypt" className="flex items-center gap-2">
                 <Unlock className="w-4 h-4" />
                 Decrypt
-              </TabsTrigger>
-              <TabsTrigger value="keys" className="flex items-center gap-2">
-                <Key className="w-4 h-4" />
-                Keys
               </TabsTrigger>
             </TabsList>
 
@@ -478,20 +370,18 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                    Public Key
+                    Password
                   </Label>
                   <Input
-                    type="text"
-                    value={keyInput}
-                    onChange={(e) => setKeyInput(e.target.value)}
-                    placeholder="Enter Base58 public key (approx. 44-45 characters)"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
                     className="font-mono text-sm h-[40px] flex-1"
                   />
                 </div>
-
                 {inputMode === 'file' ? (
                   fileInfo && (
                     <div className="space-y-3 sm:space-y-4">
@@ -514,7 +404,6 @@ export default function Home() {
                     />
                   </div>
                 )}
-
                 <div className="flex items-center justify-end space-x-2">
                   <Label htmlFor="auto-download-switch">
                     Auto Download {autoDownload ? 'Enabled' : 'Disabled'}
@@ -526,12 +415,11 @@ export default function Home() {
                     className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
                   />
                 </div>
-
                 <div className="flex gap-2">
                   <Button
                     variant="default"
                     size="lg"
-                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !keyInput || isProcessing}
+                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
                     onClick={() => processInput('encrypt')}
                     className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-400/30 hover:shadow-blue-500/40"
                   >
@@ -553,7 +441,6 @@ export default function Home() {
                 </div>
               </div>
             </TabsContent>
-
             <TabsContent value="decrypt">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -584,17 +471,16 @@ export default function Home() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                    Private Key or Mnemonic
+                    Password
                   </Label>
                   <Input
-                    type="text"
-                    value={keyInput}
-                    onChange={(e) => setKeyInput(e.target.value)}
-                    placeholder="Enter private key (64 hex) or mnemonic phrase"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
                     className="font-mono text-sm h-[40px] flex-1"
                   />
                 </div>
-
                 {inputMode === 'file' ? (
                   fileInfo && (
                     <div className="space-y-3 sm:space-y-4">
@@ -632,7 +518,7 @@ export default function Home() {
                   <Button
                     variant="default"
                     size="lg"
-                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !keyInput || isProcessing}
+                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
                     onClick={() => processInput('decrypt')}
                     className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
                   >
@@ -654,14 +540,6 @@ export default function Home() {
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="keys">
-              <div className="space-y-4">
-                <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                  Key Management
-                </Label>
-                <p className="text-gray-600 dark:text-gray-400">Key generation and management features will be available soon.</p>
-              </div>
-            </TabsContent>
           </Tabs>
 
           <ProgressIndicator
@@ -673,7 +551,6 @@ export default function Home() {
         </CardContent>
       </Card>
 
-      {/* Dialog for text encryption/decryption results */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col bg-card/20 backdrop-blur-lg rounded-xl sm:rounded-2xl border-none shadow-lg p-4 sm:p-6">
           <DialogHeader className="shrink-0 space-y-1 sm:space-y-2">
