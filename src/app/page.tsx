@@ -4,13 +4,14 @@ import { base58 } from '@scure/base'
 import { HDKey } from '@scure/bip32'
 import * as bip39 from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
-import { Upload, Lock, Unlock, Download, FileText, Key, Clipboard, ArrowLeftRight } from 'lucide-react'
-import Link from 'next/link'
+import { Upload, Lock, Unlock, Download, FileText, Key, Clipboard } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 
 import FeaturesSection from '@/components/FeaturesSection'
 import { FileInfoDisplay } from '@/components/FileInfoDisplay'
+import ModeSwitcher from '@/components/ModeSwitcher'
 import ProgressIndicator from '@/components/ProgressIndicator'
 import GradientText from '@/components/reactbits/GradientText'
 import ShinyText from '@/components/reactbits/ShinyText'
@@ -31,6 +32,8 @@ import { FileInfo, KeyPair } from '@/types'
 
 // Main page component for file and message encryption/decryption
 export default function Home() {
+  const pathname = usePathname()
+
   // State for user inputs and processing
   const [keyInput, setKeyInput] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -387,17 +390,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6">
-      <Card className="w-full max-w-xl mx-auto border-none bg-card/20 backdrop-blur-lg p-4 sm:p-6 md:p-8 transition-all duration-300 rounded-2xl relative">
-        <div className="absolute top-4 right-4">
-          <Link href='/password' passHref>
-            <Button
-              variant="outline"
-              className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
+      <Card className="w-full max-w-xl mx-auto border-none bg-card/20 backdrop-blur-lg p-4 sm:p-6 md:p-8 transition-all duration-300 rounded-2xl">
         <CardHeader className="text-center space-y-2 sm:space-y-3">
           <GradientText className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent flex items-center justify-center gap-2 sm:gap-3">
             SecureVault
@@ -411,6 +404,7 @@ export default function Home() {
         </CardHeader>
 
         <CardContent className="px-2 sm:px-4 space-y-6 sm:space-y-8">
+          <ModeSwitcher value={pathname === '/password' ? 'pwd' : 'puk'} />
           {/* Hidden file input */}
           <Input
             type="file"
