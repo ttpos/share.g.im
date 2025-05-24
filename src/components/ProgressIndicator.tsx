@@ -7,7 +7,7 @@ interface ProgressIndicatorProps {
 }
 
 export default function ProgressIndicator({ isProcessing, processingStage, processingProgress }: ProgressIndicatorProps) {
-  // if (!isProcessing) return null
+  if (!isProcessing) return null
 
   return (
     <div className="space-y-3 sm:space-y-4 animate-fadeIn">
