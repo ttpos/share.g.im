@@ -1,6 +1,6 @@
 'use client'
 
-import { Upload, Lock, Unlock, Download, FileText, Clipboard } from 'lucide-react'
+import { Upload, Lock, Unlock, Download, FileText, Clipboard, RefreshCw } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
@@ -380,26 +380,41 @@ export default function PasswordPage() {
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <Button
-                    variant="default"
-                    size="lg"
-                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
-                    onClick={() => processInput('encrypt')}
-                    className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-400/30 hover:shadow-blue-500/40"
-                  >
-                    <Lock className="w-5 h-5" />
-                    Encrypt
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="lg"
-                    disabled={isProcessing || (!encryptedData && !decryptedData)}
-                    onClick={handleDownload}
-                    className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
-                  >
-                    <Download className="w-5 h-5" />
-                    Download
-                  </Button>
+                  {!(encryptedData || decryptedData) && (
+                    <Button
+                      variant="default"
+                      size="lg"
+                      disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
+                      onClick={() => processInput('encrypt')}
+                      className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-400/30 hover:shadow-blue-500/40"
+                    >
+                      <Lock className="w-5 h-5" />
+                      Encrypt
+                    </Button>
+                  )}
+                  {(encryptedData || decryptedData) && (
+                    <Button
+                      variant="default"
+                      size="lg"
+                      onClick={clearState}
+                      className="flex-1 flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-md bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-400/30 hover:shadow-orange-500/40"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      Reset
+                    </Button>
+                  )}
+                  {(encryptedData || decryptedData) && (
+                    <Button
+                      variant="default"
+                      size="lg"
+                      disabled={isProcessing}
+                      onClick={handleDownload}
+                      className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
+                    >
+                      <Download className="w-5 h-5" />
+                      Download
+                    </Button>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -466,26 +481,41 @@ export default function PasswordPage() {
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <Button
-                    variant="default"
-                    size="lg"
-                    disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
-                    onClick={() => processInput('decrypt')}
-                    className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
-                  >
-                    <Unlock className="w-5 h-5" />
-                    Decrypt
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="lg"
-                    disabled={isProcessing || (!encryptedData && !decryptedData)}
-                    onClick={handleDownload}
-                    className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
-                  >
-                    <Download className="w-5 h-5" />
-                    Download
-                  </Button>
+                  {!(encryptedData || decryptedData) && (
+                    <Button
+                      variant="default"
+                      size="lg"
+                      disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
+                      onClick={() => processInput('decrypt')}
+                      className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
+                    >
+                      <Unlock className="w-5 h-5" />
+                      Decrypt
+                    </Button>
+                  )}
+                  {(encryptedData || decryptedData) && (
+                    <Button
+                      variant="default"
+                      size="lg"
+                      onClick={clearState}
+                      className="flex-1 flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-md bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-400/30 hover:shadow-orange-500/40"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      Reset
+                    </Button>
+                  )}
+                  {(encryptedData || decryptedData) && (
+                    <Button
+                      variant="default"
+                      size="lg"
+                      disabled={isProcessing}
+                      onClick={handleDownload}
+                      className="flex-1 flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 shadow-sm"
+                    >
+                      <Download className="w-5 h-5" />
+                      Download
+                    </Button>
+                  )}
                 </div>
               </div>
             </TabsContent>
