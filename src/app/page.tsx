@@ -20,18 +20,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { cn, DEFAULT_DERIVATION_PATH, validateBase58PublicKey } from '@/lib/utils'
-
-interface FileInfo {
-  name: string
-  size: number
-  type: string
-}
-
-interface KeyPair {
-  publicKey: string
-  privateKey: string
-}
+import { DEFAULT_DERIVATION_PATH, validateBase58PublicKey } from '@/lib/utils'
+import { FileInfo, KeyPair } from '@/types'
 
 export default function Home() {
   const [keyInput, setKeyInput] = useState('')
@@ -46,6 +36,8 @@ export default function Home() {
   const [decryptedText, setDecryptedText] = useState('') // Store decrypted text for dialog
   const [decryptedData, setDecryptedData] = useState<ArrayBuffer | null>(null) // Store decrypted data for download
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [processingProgress, setProcessingProgress] = useState(0)
+  const [processingStage, setProcessingStage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const workerRef = useRef<Worker | null>(null)
 
@@ -117,8 +109,8 @@ export default function Home() {
       downloadFile(encryptedData, filename)
       toast.success('Encrypted file downloaded successfully')
     } else if (decryptedData && fileInfo) {
-      const filename = fileInfo.name.endsWith('.enc') 
-        ? fileInfo.name.slice(0, -4) 
+      const filename = fileInfo.name.endsWith('.enc')
+        ? fileInfo.name.slice(0, -4)
         : fileInfo.name
       downloadFile(decryptedData, filename)
       toast.success('Decrypted file downloaded successfully')
@@ -200,6 +192,8 @@ export default function Home() {
     setDecryptedData(null)
     setIsDialogOpen(false)
     setIsProcessing(false)
+    setProcessingProgress(0)
+    setProcessingStage('')
   }
 
   const processInput = async (mode: 'encrypt' | 'decrypt') => {
@@ -219,6 +213,8 @@ export default function Home() {
     }
 
     setIsProcessing(true)
+    setProcessingProgress(0)
+    setProcessingStage('Initializing...')
 
     try {
       let publicKey: string | undefined
@@ -272,9 +268,18 @@ export default function Home() {
 
         const result = await new Promise<{ data: ArrayBuffer; filename: string }>((resolve, reject) => {
           worker.onmessage = (e: MessageEvent) => {
-            const { data, error } = e.data
-            if (error) reject(new Error(error))
-            else resolve(data)
+            const { data, error, progress, stage } = e.data
+            if (error) {
+              reject(new Error(error))
+            } else if (progress !== undefined) {
+              // Update progress from worker
+              setProcessingProgress(progress)
+              if (stage) {
+                setProcessingStage(stage)
+              }
+            } else if (data) {
+              resolve(data)
+            }
           }
           worker.postMessage({
             mode,
@@ -313,9 +318,18 @@ export default function Home() {
 
         const result = await new Promise<{ data: ArrayBuffer; filename: string }>((resolve, reject) => {
           worker.onmessage = (e: MessageEvent) => {
-            const { data, error } = e.data
-            if (error) reject(new Error(error))
-            else resolve(data)
+            const { data, error, progress, stage } = e.data
+            if (error) {
+              reject(new Error(error))
+            } else if (progress !== undefined) {
+              // Update progress from worker
+              setProcessingProgress(progress)
+              if (stage) {
+                setProcessingStage(stage)
+              }
+            } else if (data) {
+              resolve(data)
+            }
           }
           worker.postMessage({
             mode,
@@ -344,6 +358,13 @@ export default function Home() {
         }
         toast.success(`Text ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
       }
+
+      // Keep the completion state for a moment before clearing
+      setTimeout(() => {
+        setProcessingProgress(0)
+        setProcessingStage('')
+      }, 1000)
+
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'An error occurred during processing')
     } finally {
@@ -389,7 +410,7 @@ export default function Home() {
                 Keys
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="encrypt">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -419,7 +440,7 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                     Public Key
@@ -459,7 +480,7 @@ export default function Home() {
                     />
                   </div>
                 )}
-                
+
                 <div className="flex items-center justify-end space-x-2">
                   <Label htmlFor="auto-download-switch">
                     Auto Download {autoDownload ? 'Enabled' : 'Disabled'}
@@ -471,7 +492,7 @@ export default function Home() {
                     className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-gray-300 dark:data-[state=unchecked]:bg-gray-600"
                   />
                 </div>
-                
+
                 <div className="flex gap-2">
                   <Button
                     variant="default"
@@ -498,7 +519,7 @@ export default function Home() {
                 </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="decrypt">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -557,7 +578,7 @@ export default function Home() {
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-      Message
+                      Message
                     </Label>
                     <Textarea
                       value={textInput}
@@ -616,11 +637,20 @@ export default function Home() {
 
           {isProcessing && (
             <div className="space-y-3 sm:space-y-4 animate-fadeIn">
-              <div className="text-center text-sm sm:text-base font-semibold text-blue-600 dark:text-blue-400">
-                Processing...
+              <div className="flex items-center justify-between">
+                <div className="text-sm sm:text-base font-semibold text-blue-600 dark:text-blue-400">
+                  {processingStage || 'Processing...'}
+                </div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {Math.round(processingProgress)}%
+                </div>
               </div>
-              <div className="h-1.5 sm:h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse" />
+              <div className="relative h-2 sm:h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${processingProgress}%` }}
+                />
+                <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-full animate-shimmer" />
               </div>
             </div>
           )}
@@ -638,7 +668,7 @@ export default function Home() {
               {encryptedText ? 'Your message has been encrypted successfully' : 'Your message has been decrypted successfully'}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex-1 overflow-y-auto py-1 sm:py-2 space-y-3 sm:space-y-4">
             <div>
               <div className="flex items-center justify-between">
@@ -646,9 +676,9 @@ export default function Home() {
                   {encryptedText ? 'Encrypted Content' : 'Decrypted Content'}
                 </Label>
                 <div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
                     onClick={encryptedText ? handleDownloadEncrypted : handleDownloadDecrypted}
                     disabled={!encryptedData && !decryptedData}
@@ -656,9 +686,9 @@ export default function Home() {
                     <Download className="h-3 w-3" />
                     <span className="hidden sm:inline">Download</span>
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
                     onClick={() => handleCopyText(encryptedText || decryptedText)}
                   >

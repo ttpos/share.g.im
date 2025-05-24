@@ -1,10 +1,5 @@
 import { formatFileSize } from '@/lib/utils'
-
-interface FileInfo {
-  name: string
-  size: number
-  type: string
-}
+import { FileInfo } from '@/types'
 
 interface FileInfoDisplayProps {
   fileInfo: FileInfo

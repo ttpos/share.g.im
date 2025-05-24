@@ -7,10 +7,15 @@ self.onmessage = async (e: MessageEvent) => {
   const { mode, chunks, publicKey, privateKey, isTextMode } = e.data
 
   try {
+    // Send initial progress
+    self.postMessage({ progress: 0, stage: 'Starting...' })
+
     if (mode === 'encrypt') {
       if (!publicKey) {
         throw new Error('Public key not provided')
       }
+
+      self.postMessage({ progress: 10, stage: 'Validating public key...' })
 
       const validation = validateBase58PublicKey(publicKey)
       if (!validation.isValid) {
@@ -18,18 +23,32 @@ self.onmessage = async (e: MessageEvent) => {
       }
       const pubKeyBytes = validation.pubKeyBytes!
 
-      // Encrypt each chunk
+      self.postMessage({ progress: 20, stage: 'Starting encryption...' })
+
+      // Encrypt each chunk with progress reporting
       const encryptedChunks: Uint8Array[] = []
-      for (const chunk of chunks) {
+      const totalChunks = chunks.length
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i]
+        self.postMessage({
+          progress: 20 + ((i / totalChunks) * 60),
+          stage: `Encrypting chunk ${i + 1} of ${totalChunks}...`
+        })
+
         const encrypted = encrypt(pubKeyBytes, Buffer.from(chunk))
         encryptedChunks.push(encrypted)
       }
+
+      self.postMessage({ progress: 80, stage: 'Preparing output...' })
 
       if (isTextMode) {
         // For text mode, return the first encrypted chunk directly (no metadata)
         if (encryptedChunks.length !== 1) {
           throw new Error('Text mode expects exactly one chunk')
         }
+
+        self.postMessage({ progress: 100, stage: 'Complete!' })
         self.postMessage({
           data: {
             data: encryptedChunks[0].buffer,
@@ -43,6 +62,8 @@ self.onmessage = async (e: MessageEvent) => {
         if (nameLength > 255) {
           throw new Error('Filename too long, please rename and try again')
         }
+
+        self.postMessage({ progress: 90, stage: 'Building encrypted file...' })
 
         let totalLength = 1 + nameLength // nameLength byte + filename
         encryptedChunks.forEach(chunk => totalLength += 4 + chunk.length) // 4 bytes for chunk length
@@ -63,6 +84,7 @@ self.onmessage = async (e: MessageEvent) => {
           offset += chunk.length
         }
 
+        self.postMessage({ progress: 100, stage: 'Complete!' })
         self.postMessage({
           data: {
             data: resultArray.buffer,
@@ -81,7 +103,11 @@ self.onmessage = async (e: MessageEvent) => {
         throw new Error('Invalid private key length. Must be 32 bytes (64 hex characters)')
       }
 
+      self.postMessage({ progress: 10, stage: 'Validating private key...' })
+
       // Combine chunks into a single buffer
+      self.postMessage({ progress: 20, stage: 'Preparing encrypted data...' })
+
       const totalLength = chunks.reduce((sum: number, chunk: ArrayBuffer) => sum + chunk.byteLength, 0)
       const combinedData = new Uint8Array(totalLength)
       let offset = 0
@@ -94,16 +120,22 @@ self.onmessage = async (e: MessageEvent) => {
       let totalDecryptedLength = 0
 
       if (isTextMode) {
+        self.postMessage({ progress: 30, stage: 'Decrypting message...' })
+
         // For text mode, treat the entire data as a single encrypted chunk
         try {
           const decrypted = decrypt(Buffer.from(privateKey, 'hex'), combinedData)
           decryptedChunks.push(decrypted)
           totalDecryptedLength += decrypted.length
+
+          self.postMessage({ progress: 90, stage: 'Preparing decrypted text...' })
         } catch (err) {
           throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Invalid private key or corrupted data'}`)
         }
       } else {
         // For file mode, parse metadata and decrypt chunks
+        self.postMessage({ progress: 30, stage: 'Parsing file metadata...' })
+
         offset = 0
         if (combinedData.length < 1) {
           throw new Error('Invalid file format: File too small')
@@ -119,6 +151,8 @@ self.onmessage = async (e: MessageEvent) => {
         }
         const originalName = new TextDecoder().decode(combinedData.slice(offset, offset + nameLength))
         offset += nameLength
+
+        self.postMessage({ progress: 40, stage: 'Extracting encrypted chunks...' })
 
         const encryptedChunks: Uint8Array[] = []
         while (offset < combinedData.length) {
@@ -139,8 +173,17 @@ self.onmessage = async (e: MessageEvent) => {
           throw new Error('Invalid file format: No encrypted chunks found')
         }
 
-        // Decrypt each chunk
-        for (const chunk of encryptedChunks) {
+        self.postMessage({ progress: 50, stage: 'Starting decryption...' })
+
+        // Decrypt each chunk with progress reporting
+        const totalChunks = encryptedChunks.length
+        for (let i = 0; i < encryptedChunks.length; i++) {
+          const chunk = encryptedChunks[i]
+          self.postMessage({
+            progress: 50 + ((i / totalChunks) * 30),
+            stage: `Decrypting chunk ${i + 1} of ${totalChunks}...`
+          })
+
           try {
             const decrypted = decrypt(Buffer.from(privateKey, 'hex'), chunk)
             decryptedChunks.push(decrypted)
@@ -152,7 +195,10 @@ self.onmessage = async (e: MessageEvent) => {
 
         // Update filename for file mode
         filename = originalName
+        self.postMessage({ progress: 80, stage: 'Preparing decrypted file...' })
       }
+
+      self.postMessage({ progress: 90, stage: 'Finalizing...' })
 
       // Combine decrypted chunks
       const resultArray = new Uint8Array(totalDecryptedLength)
@@ -162,6 +208,7 @@ self.onmessage = async (e: MessageEvent) => {
         currentOffset += chunk.length
       }
 
+      self.postMessage({ progress: 100, stage: 'Complete!' })
       self.postMessage({
         data: {
           data: resultArray.buffer,
