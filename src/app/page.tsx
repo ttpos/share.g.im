@@ -10,6 +10,7 @@ import { Toaster, toast } from 'sonner'
 
 import FeaturesSection from '@/components/FeaturesSection'
 import { FileInfoDisplay } from '@/components/FileInfoDisplay'
+import ProgressIndicator from '@/components/ProgressIndicator'
 import GradientText from '@/components/reactbits/GradientText'
 import ShinyText from '@/components/reactbits/ShinyText'
 import { Button } from '@/components/ui/button'
@@ -20,10 +21,18 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { DEFAULT_DERIVATION_PATH, validateBase58PublicKey } from '@/lib/utils'
+import {
+  DEFAULT_DERIVATION_PATH,
+  generateTimestamp,
+  getFileExtension,
+  getFilenameWithoutExtension,
+  validateBase58PublicKey
+} from '@/lib/utils'
 import { FileInfo, KeyPair } from '@/types'
 
+// Main page component for file and message encryption/decryption
 export default function Home() {
+  // State for user inputs and processing
   const [keyInput, setKeyInput] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
@@ -44,12 +53,10 @@ export default function Home() {
   // Initialize Web Worker
   useEffect(() => {
     workerRef.current = new Worker(new URL('../workers/cryptoWorker.ts', import.meta.url))
-    return () => {
-      workerRef.current?.terminate()
-    }
+    return () => workerRef.current?.terminate()
   }, [])
 
-  // Extract public key from URL hash parameter
+  // Extract public key from URL hash
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#\/?/, '')
@@ -66,8 +73,6 @@ export default function Home() {
         } else {
           setKeyInput('')
         }
-      } else {
-        setKeyInput('')
       }
     }
 
@@ -76,6 +81,7 @@ export default function Home() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
+  // Handle file selection
   const handleFileSelect = useCallback((file: File | null) => {
     setSelectedFile(file)
     if (file) {
@@ -89,34 +95,40 @@ export default function Home() {
     }
   }, [])
 
+  // Download encrypted data
   const handleDownloadEncrypted = useCallback(() => {
     if (encryptedData) {
-      downloadFile(encryptedData, 'encrypted_text.txt.enc')
+      const timestamp = generateTimestamp()
+      downloadFile(encryptedData, `encrypted_text_${timestamp}.enc`)
       toast.success('File downloaded')
     }
   }, [encryptedData])
 
+  // Download decrypted data
   const handleDownloadDecrypted = useCallback(() => {
     if (decryptedData) {
-      downloadFile(decryptedData, 'decrypted_text.txt')
+      const timestamp = generateTimestamp()
+      downloadFile(decryptedData, `${timestamp}.txt`)
       toast.success('File downloaded')
     }
   }, [decryptedData])
 
+  // Handle file download with appropriate naming
   const handleDownload = useCallback(() => {
     if (encryptedData && fileInfo) {
-      const filename = `${fileInfo.name}.enc`
-      downloadFile(encryptedData, filename)
+      const timestamp = generateTimestamp()
+      const nameWithoutExt = getFilenameWithoutExtension(fileInfo.name)
+      downloadFile(encryptedData, `${nameWithoutExt}_${timestamp}.enc`)
       toast.success('Encrypted file downloaded successfully')
     } else if (decryptedData && fileInfo) {
-      const filename = fileInfo.name.endsWith('.enc')
-        ? fileInfo.name.slice(0, -4)
-        : fileInfo.name
-      downloadFile(decryptedData, filename)
+      const timestamp = generateTimestamp()
+      const extension = fileInfo.originalExtension || 'bin'
+      downloadFile(decryptedData, `${timestamp}.${extension}`)
       toast.success('Decrypted file downloaded successfully')
     }
   }, [encryptedData, decryptedData, fileInfo])
 
+  // Read file as chunks
   const readFileChunk = (file: File, offset: number, chunkSize: number): Promise<ArrayBuffer> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
@@ -127,6 +139,7 @@ export default function Home() {
     })
   }
 
+  // Download data as a file
   const downloadFile = (data: ArrayBuffer, filename: string) => {
     const blob = new Blob([data])
     const url = URL.createObjectURL(blob)
@@ -140,37 +153,39 @@ export default function Home() {
     URL.revokeObjectURL(url)
   }
 
+  // Derive key pair from mnemonic
   const deriveKeyPair = (mnemonic: string): KeyPair => {
     if (!bip39.validateMnemonic(mnemonic, wordlist)) {
       throw new Error('Invalid mnemonic phrase')
     }
-
     const seed = bip39.mnemonicToSeedSync(mnemonic)
     const masterNode = HDKey.fromMasterSeed(seed)
     const key = masterNode.derive(DEFAULT_DERIVATION_PATH)
-
     if (!key.privateKey || !key.publicKey) {
       throw new Error('Failed to derive key pair')
     }
-
     return {
       privateKey: Buffer.from(key.privateKey).toString('hex'),
       publicKey: base58.encode(key.publicKey)
     }
   }
 
+  // Validate Base58 string
   const isBase58String = (input: string): boolean => {
     return /^[1-9A-HJ-NP-Za-km-z]+$/.test(input)
   }
 
+  // Validate hex string
   const isHexString = (input: string): boolean => {
     return /^[0-9a-fA-F]+$/.test(input)
   }
 
+  // Check if input is a mnemonic phrase
   const isMnemonicPhrase = (input: string): boolean => {
     return input.split(' ').length >= 12
   }
 
+  // Copy text to clipboard
   const handleCopyText = async (message: string) => {
     try {
       await navigator.clipboard.writeText(message)
@@ -181,6 +196,7 @@ export default function Home() {
     }
   }
 
+  // Reset all states
   const clearState = () => {
     setKeyInput('')
     setSelectedFile(null)
@@ -196,17 +212,16 @@ export default function Home() {
     setProcessingStage('')
   }
 
+  // Process encryption or decryption
   const processInput = async (mode: 'encrypt' | 'decrypt') => {
     if (inputMode === 'file' && !selectedFile) {
       toast.error('Please select a file first')
       return
     }
-
     if (inputMode === 'message' && !textInput.trim()) {
       toast.error('Please input the message for processing')
       return
     }
-
     if (!keyInput) {
       toast.error(mode === 'decrypt' ? 'Please enter a private key or mnemonic phrase' : 'Please enter a public key')
       return
@@ -217,9 +232,9 @@ export default function Home() {
     setProcessingStage('Initializing...')
 
     try {
+      // Validate and prepare keys
       let publicKey: string | undefined
       let privateKey: string | undefined
-
       if (mode === 'encrypt') {
         if (isBase58String(keyInput)) {
           const validation = validateBase58PublicKey(keyInput)
@@ -232,14 +247,12 @@ export default function Home() {
         }
       } else {
         if (isHexString(keyInput)) {
-          if (keyInput.length === 64) {
-            privateKey = keyInput
-          } else {
+          if (keyInput.length !== 64) {
             throw new Error('Invalid private key length. Must be 32 bytes (64 hex characters)')
           }
+          privateKey = keyInput
         } else if (isMnemonicPhrase(keyInput)) {
-          const derivedKeys = deriveKeyPair(keyInput)
-          privateKey = derivedKeys.privateKey
+          privateKey = deriveKeyPair(keyInput).privateKey
         } else {
           throw new Error('Invalid input. Please enter a valid private key (64 hex characters) or mnemonic phrase')
         }
@@ -249,30 +262,26 @@ export default function Home() {
       if (!worker) throw new Error('Web Worker not initialized')
 
       if (inputMode === 'file' && selectedFile) {
+        // Process file input
         const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB chunks
         const chunks: ArrayBuffer[] = []
         const fileSize = selectedFile.size
         let offset = 0
-
-        // Split file into chunks
         while (offset < fileSize) {
           const chunk = await readFileChunk(selectedFile, offset, CHUNK_SIZE)
           chunks.push(chunk)
           offset += CHUNK_SIZE
         }
-
-        // Warn for large files
         if (fileSize > 50 * 1024 * 1024) {
           toast.warning('Large file detected. Processing may be slow on client-side.')
         }
 
-        const result = await new Promise<{ data: ArrayBuffer; filename: string }>((resolve, reject) => {
+        const result = await new Promise<{ data: ArrayBuffer; filename: string; originalExtension?: string }>((resolve, reject) => {
           worker.onmessage = (e: MessageEvent) => {
             const { data, error, progress, stage } = e.data
             if (error) {
               reject(new Error(error))
             } else if (progress !== undefined) {
-              // Update progress from worker
               setProcessingProgress(progress)
               if (stage) {
                 setProcessingStage(stage)
@@ -292,17 +301,25 @@ export default function Home() {
         })
 
         if (autoDownload) {
-          downloadFile(result.data, result.filename)
+          const timestamp = generateTimestamp()
+          const downloadFilename = mode === 'encrypt'
+            ? `${getFilenameWithoutExtension(selectedFile.name)}_${timestamp}.enc`
+            : `${timestamp}.${result.originalExtension || getFileExtension(selectedFile.name.replace('.enc', ''))}`
+          downloadFile(result.data, downloadFilename)
           toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
         } else {
           if (mode === 'encrypt') {
             setEncryptedData(result.data)
           } else {
             setDecryptedData(result.data)
+            if (result.originalExtension) {
+              setFileInfo(prev => prev ? { ...prev, originalExtension: result.originalExtension } : null)
+            }
           }
           toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
         }
       } else if (inputMode === 'message') {
+        // Process text input
         let chunks: ArrayBuffer[] = []
         if (mode === 'encrypt') {
           const textBuffer = new TextEncoder().encode(textInput)
@@ -311,7 +328,6 @@ export default function Home() {
           // TODO: pending
           chunks = [textBuffer.buffer]
         } else {
-          // For decryption, assume textInput is Base64 encoded
           const decodedText = Buffer.from(textInput, 'base64')
           chunks = [decodedText.buffer]
         }
@@ -322,7 +338,6 @@ export default function Home() {
             if (error) {
               reject(new Error(error))
             } else if (progress !== undefined) {
-              // Update progress from worker
               setProcessingProgress(progress)
               if (stage) {
                 setProcessingStage(stage)
@@ -331,10 +346,12 @@ export default function Home() {
               resolve(data)
             }
           }
+          const timestamp = generateTimestamp()
+          const filename = mode === 'encrypt' ? `encrypted_text_${timestamp}.enc` : `${timestamp}.txt`
           worker.postMessage({
             mode,
             chunks,
-            filename: mode === 'encrypt' ? 'encrypted_text.txt.enc' : 'decrypted_text.txt',
+            filename,
             publicKey,
             privateKey,
             isTextMode: true
@@ -359,12 +376,10 @@ export default function Home() {
         toast.success(`Text ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
       }
 
-      // Keep the completion state for a moment before clearing
       setTimeout(() => {
         setProcessingProgress(0)
         setProcessingStage('')
       }, 1000)
-
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'An error occurred during processing')
     } finally {
@@ -422,7 +437,6 @@ export default function Home() {
                       variant={inputMode === 'file' ? 'default' : 'outline'}
                       onClick={() => {
                         setInputMode('file')
-                        // Trigger file selection immediately when File mode is selected
                         setTimeout(() => fileInputRef.current?.click(), 100)
                       }}
                       className="flex-1 flex items-center justify-center text-white"
@@ -445,28 +459,24 @@ export default function Home() {
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                     Public Key
                   </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      value={keyInput}
-                      onChange={(e) => setKeyInput(e.target.value)}
-                      placeholder="Enter Base58 public key (approx. 44-45 characters)"
-                      className="font-mono text-sm h-[40px] flex-1"
-                    />
-                  </div>
+                  <Input
+                    type="text"
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    placeholder="Enter Base58 public key (approx. 44-45 characters)"
+                    className="font-mono text-sm h-[40px] flex-1"
+                  />
                 </div>
 
                 {inputMode === 'file' ? (
-                  <>
-                    {fileInfo && (
-                      <div className="space-y-3 sm:space-y-4">
-                        <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                          Selected File
-                        </Label>
-                        <FileInfoDisplay fileInfo={fileInfo} />
-                      </div>
-                    )}
-                  </>
+                  fileInfo && (
+                    <div className="space-y-3 sm:space-y-4">
+                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                        Selected File
+                      </Label>
+                      <FileInfoDisplay fileInfo={fileInfo} />
+                    </div>
+                  )
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
@@ -531,7 +541,6 @@ export default function Home() {
                       variant={inputMode === 'file' ? 'default' : 'outline'}
                       onClick={() => {
                         setInputMode('file')
-                        // Trigger file selection immediately when File mode is selected
                         setTimeout(() => fileInputRef.current?.click(), 100)
                       }}
                       className="flex-1 flex items-center justify-center text-white"
@@ -553,28 +562,24 @@ export default function Home() {
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                     Private Key or Mnemonic
                   </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      value={keyInput}
-                      onChange={(e) => setKeyInput(e.target.value)}
-                      placeholder="Enter private key (64 hex) or mnemonic phrase"
-                      className="font-mono text-sm h-[40px] flex-1"
-                    />
-                  </div>
+                  <Input
+                    type="text"
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    placeholder="Enter private key (64 hex) or mnemonic phrase"
+                    className="font-mono text-sm h-[40px] flex-1"
+                  />
                 </div>
 
                 {inputMode === 'file' ? (
-                  <>
-                    {fileInfo && (
-                      <div className="space-y-3 sm:space-y-4">
-                        <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                          Selected File
-                        </Label>
-                        <FileInfoDisplay fileInfo={fileInfo} />
-                      </div>
-                    )}
-                  </>
+                  fileInfo && (
+                    <div className="space-y-3 sm:space-y-4">
+                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                        Selected File
+                      </Label>
+                      <FileInfoDisplay fileInfo={fileInfo} />
+                    </div>
+                  )
                 ) : (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
@@ -583,7 +588,7 @@ export default function Home() {
                     <Textarea
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="Enter the message to be encrypted"
+                      placeholder="Enter the message to be decrypted"
                       className="min-h-[100px] font-mono text-sm"
                     />
                   </div>
@@ -635,29 +640,16 @@ export default function Home() {
             </TabsContent>
           </Tabs>
 
-          {isProcessing && (
-            <div className="space-y-3 sm:space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <div className="text-sm sm:text-base font-semibold text-blue-600 dark:text-blue-400">
-                  {processingStage || 'Processing...'}
-                </div>
-                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  {Math.round(processingProgress)}%
-                </div>
-              </div>
-              <div className="relative h-2 sm:h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-300 ease-out"
-                  style={{ width: `${processingProgress}%` }}
-                />
-                <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-full animate-shimmer" />
-              </div>
-            </div>
-          )}
+          <ProgressIndicator
+            isProcessing={isProcessing}
+            processingStage={processingStage}
+            processingProgress={processingProgress}
+          />
           <FeaturesSection />
         </CardContent>
       </Card>
 
+      {/* Dialog for text encryption/decryption results */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col bg-card/20 backdrop-blur-lg rounded-xl sm:rounded-2xl border-none shadow-lg p-4 sm:p-6">
           <DialogHeader className="shrink-0 space-y-1 sm:space-y-2">
