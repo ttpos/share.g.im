@@ -26,6 +26,7 @@ import {
   DEFAULT_DERIVATION_PATH,
   generateTimestamp,
   getFilenameWithoutExtension,
+  identifyEncryptionMode,
   validateBase58PublicKey
 } from '@/lib/utils'
 import { FileInfo, KeyPair } from '@/types'
@@ -83,13 +84,15 @@ export default function Home() {
   }, [])
 
   // Handle file selection
-  const handleFileSelect = useCallback((file: File | null) => {
+  const handleFileSelect = useCallback(async (file: File | null) => {
     setSelectedFile(file)
     if (file) {
+      const encryptionMode = await identifyEncryptionMode(file) as FileInfo['encryptionMode']
       setFileInfo({
         name: file.name,
         size: file.size,
-        type: file.type || 'Unknown'
+        type: file.type || 'Unknown',
+        encryptionMode: encryptionMode
       })
     } else {
       setFileInfo(null)
@@ -470,16 +473,15 @@ export default function Home() {
                   />
                 </div>
 
-                {inputMode === 'file' ? (
-                  fileInfo && (
-                    <div className="space-y-3 sm:space-y-4">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Selected File
-                      </Label>
-                      <FileInfoDisplay fileInfo={fileInfo} />
-                    </div>
-                  )
-                ) : (
+                {inputMode === 'file' && fileInfo && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                      Selected File
+                    </Label>
+                    <FileInfoDisplay fileInfo={fileInfo} />
+                  </div>
+                )}
+                {inputMode === 'message' && (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                       Message
@@ -574,16 +576,15 @@ export default function Home() {
                   />
                 </div>
 
-                {inputMode === 'file' ? (
-                  fileInfo && (
-                    <div className="space-y-3 sm:space-y-4">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Selected File
-                      </Label>
-                      <FileInfoDisplay fileInfo={fileInfo} />
-                    </div>
-                  )
-                ) : (
+                {inputMode === 'file' && fileInfo && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                      Selected File
+                    </Label>
+                    <FileInfoDisplay fileInfo={fileInfo} isDecryptMode={true} />
+                  </div>
+                )}
+                {inputMode === 'message' && (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                       Message

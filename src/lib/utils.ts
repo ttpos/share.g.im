@@ -1,3 +1,4 @@
+import { bytesToUtf8 } from '@noble/ciphers/utils'
 import { base58 } from '@scure/base'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -105,4 +106,31 @@ export function getFileExtension(filename: string) {
 export function getFilenameWithoutExtension(filename: string) {
   const parts = filename.split('.')
   return parts.length > 1 ? parts.slice(0, -1).join('.') : filename
+}
+
+// Read file as ArrayBuffer
+const readFileAsArrayBuffer = (file: File | Blob): Promise<ArrayBuffer> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as ArrayBuffer)
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+// Identify encryption mode from file
+export const identifyEncryptionMode = async (file: File): Promise<string | null> => {
+  try {
+    const buffer = await readFileAsArrayBuffer(file.slice(0, 4))
+    const data = new Uint8Array(buffer)
+    const srv = bytesToUtf8(data.slice(0, 2))
+    if (srv !== 'ns') {
+      return null
+    }
+    const mode = data.slice(2, 3)[0]
+    return mode === 0 ? 'public-key' : null
+  } catch (error) {
+    console.error('Error identifying encryption mode:', error)
+    return null
+  }
 }

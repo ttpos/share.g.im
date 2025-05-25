@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { generateTimestamp, getFilenameWithoutExtension } from '@/lib/utils'
+import { generateTimestamp, getFilenameWithoutExtension, identifyEncryptionMode } from '@/lib/utils'
 import { FileInfo } from '@/types'
 
 export default function PasswordPage() {
@@ -46,13 +46,16 @@ export default function PasswordPage() {
     return () => workerRef.current?.terminate()
   }, [])
 
-  const handleFileSelect = useCallback((file: File | null) => {
+  // Handle file selection
+  const handleFileSelect = useCallback(async (file: File | null) => {
     setSelectedFile(file)
     if (file) {
+      const encryptionMode = await identifyEncryptionMode(file) as FileInfo['encryptionMode']
       setFileInfo({
         name: file.name,
         size: file.size,
-        type: file.type || 'Unknown'
+        type: file.type || 'Unknown',
+        encryptionMode: encryptionMode
       })
     } else {
       setFileInfo(null)
@@ -357,16 +360,16 @@ export default function PasswordPage() {
                     className="font-mono text-sm h-[40px] flex-1"
                   />
                 </div>
-                {inputMode === 'file' ? (
-                  fileInfo && (
-                    <div className="space-y-3 sm:space-y-4">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Selected File
-                      </Label>
-                      <FileInfoDisplay fileInfo={fileInfo} />
-                    </div>
-                  )
-                ) : (
+
+                {inputMode === 'file' && fileInfo && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                      Selected File
+                    </Label>
+                    <FileInfoDisplay fileInfo={fileInfo} />
+                  </div>
+                )}
+                {inputMode === 'message' && (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                       Message
@@ -457,16 +460,15 @@ export default function PasswordPage() {
                     className="font-mono text-sm h-[40px] flex-1"
                   />
                 </div>
-                {inputMode === 'file' ? (
-                  fileInfo && (
-                    <div className="space-y-3 sm:space-y-4">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Selected File
-                      </Label>
-                      <FileInfoDisplay fileInfo={fileInfo} />
-                    </div>
-                  )
-                ) : (
+                {inputMode === 'file' && fileInfo && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                      Selected File
+                    </Label>
+                    <FileInfoDisplay fileInfo={fileInfo} isDecryptMode={true} />
+                  </div>
+                )}
+                {inputMode === 'message' && (
                   <div className="space-y-3 sm:space-y-4">
                     <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                       Message
