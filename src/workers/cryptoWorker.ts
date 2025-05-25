@@ -1,6 +1,6 @@
 import { encrypt, decrypt } from 'eciesjs'
 
-import { getFileExtension, getFilenameWithoutExtension, validateBase58PublicKey } from '@/lib/utils'
+import { validateBase58PublicKey, getFileExtension } from '@/lib/utils'
 
 // Interfaces for message data
 interface WorkerInput {
@@ -53,32 +53,24 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         self.postMessage({ progress: 100, stage: 'Complete!' })
         self.postMessage({ data: { data: resultArray.buffer, filename } })
       } else {
-        // File mode: include metadata
-        const nameWithoutExt = getFilenameWithoutExtension(filename)
+        // File mode: store extension only
         const originalExtension = getFileExtension(filename)
-        const nameBuffer = new TextEncoder().encode(nameWithoutExt)
         const extensionBuffer = new TextEncoder().encode(originalExtension)
-        const nameLength = nameBuffer.length
         const extensionLength = extensionBuffer.length
 
-        if (nameLength > 255) throw new Error('Filename too long, please rename and try again')
         if (extensionLength > 255) throw new Error('File extension too long')
 
         self.postMessage({ progress: 90, stage: 'Building encrypted file...' })
 
         // Construct output buffer with file mode marker
         const marker = new Uint8Array([0x00]) // File mode marker
-        let totalLength = 1 + 1 + nameLength + 1 + extensionLength
+        let totalLength = 1 + 1 + extensionLength
         encryptedChunks.forEach(chunk => totalLength += 4 + chunk.length)
         const resultArray = new Uint8Array(totalLength)
         let offset = 0
 
         resultArray.set(marker, offset)
         offset += 1
-        resultArray.set([nameLength], offset)
-        offset += 1
-        resultArray.set(nameBuffer, offset)
-        offset += nameLength
         resultArray.set([extensionLength], offset)
         offset += 1
         resultArray.set(extensionBuffer, offset)
@@ -132,7 +124,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
           throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Invalid private key or corrupted data'}`)
         }
       } else {
-        // File mode: check for text mode or file mode
+        // File mode: parse extension only
         self.postMessage({ progress: 30, stage: 'Checking file format...' })
         if (combinedData.length < 1) throw new Error('Invalid file format: File too small')
 
@@ -149,18 +141,11 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
             throw new Error(`Decryption failed: ${err instanceof Error ? err.message : 'Invalid private key or corrupted data'}`)
           }
         } else if (combinedData[0] === 0x00) {
-          // File mode: parse metadata
+          // File mode: parse extension
           self.postMessage({ progress: 40, stage: 'Parsing file metadata...' })
           offset = 1
 
           if (combinedData.length < offset + 1) throw new Error('Invalid file format: File too small')
-          const nameLength = combinedData[offset]
-          if (nameLength > 255 || nameLength < 0) throw new Error('Invalid file format: Invalid name length')
-          offset += 1
-          if (offset + nameLength > combinedData.length) throw new Error('Invalid file format: Name length exceeds data')
-          offset += nameLength
-
-          if (offset + 1 > combinedData.length) throw new Error('Invalid file format: Missing extension length')
           const extensionLength = combinedData[offset]
           if (extensionLength > 255 || extensionLength < 0) throw new Error('Invalid file format: Invalid extension length')
           offset += 1

@@ -1,8 +1,8 @@
-import { gcm } from '@noble/ciphers/aes.js'
-import { randomBytes } from '@noble/ciphers/webcrypto.js'
-import { argon2id } from '@noble/hashes/argon2.js'
+import { gcm } from '@noble/ciphers/aes'
+import { randomBytes } from '@noble/ciphers/webcrypto'
+import { argon2id } from '@noble/hashes/argon2'
 
-import { getFileExtension, getFilenameWithoutExtension } from '@/lib/utils'
+import { getFileExtension } from '@/lib/utils'
 
 interface WorkerInput {
   mode: 'encrypt' | 'decrypt';
@@ -61,30 +61,22 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         self.postMessage({ progress: 100, stage: 'Complete!' })
         self.postMessage({ data: { data: resultArray.buffer, filename } })
       } else {
-        const nameWithoutExt = getFilenameWithoutExtension(filename)
         const originalExtension = getFileExtension(filename)
-        const nameBuffer = new TextEncoder().encode(nameWithoutExt)
         const extensionBuffer = new TextEncoder().encode(originalExtension)
-        const nameLength = nameBuffer.length
         const extensionLength = extensionBuffer.length
 
-        if (nameLength > 255) throw new Error('Filename too long, please rename and try again')
         if (extensionLength > 255) throw new Error('File extension too long')
 
         self.postMessage({ progress: 90, stage: 'Building encrypted file...' })
 
         const marker = new Uint8Array([0x02])
-        let totalLength = 1 + 1 + nameLength + 1 + extensionLength + salt.length + iv.length
+        let totalLength = 1 + 1 + extensionLength + salt.length + iv.length
         encryptedChunks.forEach(chunk => totalLength += 4 + chunk.length)
         const resultArray = new Uint8Array(totalLength)
         let offset = 0
 
         resultArray.set(marker, offset)
         offset += 1
-        resultArray.set([nameLength], offset)
-        offset += 1
-        resultArray.set(nameBuffer, offset)
-        offset += nameLength
         resultArray.set([extensionLength], offset)
         offset += 1
         resultArray.set(extensionBuffer, offset)
@@ -122,8 +114,6 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
       let totalDecryptedLength = 0
       let originalExtension = 'txt'
 
-      if (combinedData[0] !== 0x02) throw new Error('Invalid file format: Not a password-encrypted file')
-
       if (isTextMode) {
         self.postMessage({ progress: 30, stage: 'Extracting encryption parameters...' })
         const salt = combinedData.slice(1, 17)
@@ -149,13 +139,6 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
         offset = 1
 
         if (combinedData.length < offset + 1) throw new Error('Invalid file format: File too small')
-        const nameLength = combinedData[offset]
-        if (nameLength > 255 || nameLength < 0) throw new Error('Invalid file format: Invalid name length')
-        offset += 1
-        if (offset + nameLength > combinedData.length) throw new Error('Invalid file format: Name length exceeds data')
-        offset += nameLength
-
-        if (offset + 1 > combinedData.length) throw new Error('Invalid file format: Missing extension length')
         const extensionLength = combinedData[offset]
         if (extensionLength > 255 || extensionLength < 0) throw new Error('Invalid file format: Invalid extension length')
         offset += 1
