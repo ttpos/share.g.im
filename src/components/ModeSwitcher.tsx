@@ -26,7 +26,7 @@ export default function ModeSwitcher({ value, onValueChange }: ModeSwitcherProps
 
   return (
     <div className="space-y-2">
-      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">Mode</Label>
+      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">Encryption Mode</Label>
       <Select value={value} onValueChange={handleModeChange}>
         <SelectTrigger className="w-full h-[40px] text-sm font-medium text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 rounded-md p-2 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none">
           <SelectValue placeholder="Select mode" />
