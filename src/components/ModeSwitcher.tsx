@@ -32,7 +32,7 @@ export default function ModeSwitcher({ value, onValueChange }: ModeSwitcherProps
           <SelectValue placeholder="Select mode" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="puk">Public/Private Key Mode</SelectItem>
+          <SelectItem value="puk">Public-key Mode</SelectItem>
           <SelectItem value="pwd">Password Mode</SelectItem>
         </SelectContent>
       </Select>
