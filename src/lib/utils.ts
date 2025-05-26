@@ -1,9 +1,22 @@
+import { bytesToUtf8 } from '@noble/ciphers/utils'
 import { base58 } from '@scure/base'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+// Default derivation path for key generation
+// eslint-disable-next-line quotes
+export const DEFAULT_DERIVATION_PATH = "m/44'/0'/0'/0/0"
+
+export function formatFileSize(bytes: number) {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 interface Base58ValidationResult {
@@ -41,14 +54,14 @@ export function validateBase58PublicKey(key: string): Base58ValidationResult {
 
   try {
     const pubKeyBytes = base58.decode(trimmedKey)
-    
+
     // Check decoded length
     // 33 bytes: compressed format public key
     // 65 bytes: uncompressed format public key  
     if (pubKeyBytes.length !== 33 && pubKeyBytes.length !== 65) {
-      return { 
-        isValid: false, 
-        error: `Invalid public key length. Expected 33 bytes (compressed) or 65 bytes (uncompressed), got ${pubKeyBytes.length} bytes` 
+      return {
+        isValid: false,
+        error: `Invalid public key length. Expected 33 bytes (compressed) or 65 bytes (uncompressed), got ${pubKeyBytes.length} bytes`
       }
     }
 
@@ -56,9 +69,9 @@ export function validateBase58PublicKey(key: string): Base58ValidationResult {
     if (pubKeyBytes.length === 33) {
       const prefix = pubKeyBytes[0]
       if (prefix !== 0x02 && prefix !== 0x03) {
-        return { 
-          isValid: false, 
-          error: 'Invalid compressed public key prefix. Must start with 0x02 or 0x03' 
+        return {
+          isValid: false,
+          error: 'Invalid compressed public key prefix. Must start with 0x02 or 0x03'
         }
       }
     }
@@ -67,18 +80,57 @@ export function validateBase58PublicKey(key: string): Base58ValidationResult {
     if (pubKeyBytes.length === 65) {
       const prefix = pubKeyBytes[0]
       if (prefix !== 0x04) {
-        return { 
-          isValid: false, 
-          error: 'Invalid uncompressed public key prefix. Must start with 0x04' 
+        return {
+          isValid: false,
+          error: 'Invalid uncompressed public key prefix. Must start with 0x04'
         }
       }
     }
 
     return { isValid: true, pubKeyBytes }
   } catch (error) {
-    return { 
-      isValid: false, 
-      error: `Failed to decode Base58 public key: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    return {
+      isValid: false,
+      error: `Failed to decode Base58 public key: ${error instanceof Error ? error.message : 'Unknown error'}`
     }
+  }
+}
+
+export const generateTimestamp = () => +new Date()
+
+export function getFileExtension(filename: string) {
+  const parts = filename.split('.')
+  return parts.length > 1 ? parts.pop()! : 'txt'
+}
+
+export function getFilenameWithoutExtension(filename: string) {
+  const parts = filename.split('.')
+  return parts.length > 1 ? parts.slice(0, -1).join('.') : filename
+}
+
+// Read file as ArrayBuffer
+const readFileAsArrayBuffer = (file: File | Blob): Promise<ArrayBuffer> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as ArrayBuffer)
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+// Identify encryption mode from file
+export const identifyEncryptionMode = async (file: File): Promise<string | null> => {
+  try {
+    const buffer = await readFileAsArrayBuffer(file.slice(0, 4))
+    const data = new Uint8Array(buffer)
+    const srv = bytesToUtf8(data.slice(0, 2))
+    if (srv !== 'ns') {
+      return null
+    }
+    const mode = data.slice(2, 3)[0]
+    return mode === 0 ? 'public-key' : null
+  } catch (error) {
+    console.error('Error identifying encryption mode:', error)
+    return null
   }
 }

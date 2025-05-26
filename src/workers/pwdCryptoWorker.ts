@@ -1,22 +1,27 @@
-import { base58 } from '@scure/base'
-
 import { encrypt, decrypt, checkDecryptHeader } from '@/lib/crypto'
 import { getFileExtension } from '@/lib/utils'
 
 interface WorkerInput {
   mode: 'encrypt' | 'decrypt'
   chunks: ArrayBuffer[]
-  publicKey?: string
-  privateKey?: string
+  password?: string
+  encryptionMode: 'password'
   filename: string
   isTextMode: boolean
 }
 
 self.onmessage = async (e: MessageEvent<WorkerInput>) => {
-  const { mode, chunks, publicKey, privateKey, filename, isTextMode } = e.data
+  const { mode, chunks, password, encryptionMode, filename, isTextMode } = e.data
 
   try {
     self.postMessage({ progress: 0, stage: 'Starting...' })
+
+    if (encryptionMode !== 'password') {
+      throw new Error('Unsupported encryption mode')
+    }
+    if (!password) {
+      throw new Error('Password not provided')
+    }
 
     // Combine chunks into a single buffer
     self.postMessage({ progress: 10, stage: 'Combining data...' })
@@ -29,13 +34,12 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
     }
 
     if (mode === 'encrypt') {
-      if (!publicKey) throw new Error('Public key not provided')
       self.postMessage({ progress: 20, stage: 'Encrypting data...' })
 
       const ext = isTextMode ? 'txt' : getFileExtension(filename)
       const result = encrypt({
         data: combinedData,
-        receiver: base58.decode(publicKey),
+        password,
         ext
       })
 
@@ -44,21 +48,16 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
       self.postMessage({ progress: 100, stage: 'Complete!' })
       self.postMessage({ data: { data: result.buffer, filename: outputFilename } })
     } else if (mode === 'decrypt') {
-      if (!privateKey) throw new Error('Private key not provided')
-      if (!/^[0-9a-fA-F]+$/.test(privateKey) || privateKey.length !== 64) {
-        throw new Error('Invalid private key format')
-      }
-
       self.postMessage({ progress: 20, stage: 'Validating data...' })
       const header = checkDecryptHeader({
         data: combinedData,
-        receiver: Buffer.from(privateKey, 'hex')
+        password
       })
 
       self.postMessage({ progress: 30, stage: 'Decrypting data...' })
       const result = decrypt({
         data: combinedData,
-        receiver: Buffer.from(privateKey, 'hex')
+        password
       })
 
       self.postMessage({ progress: 90, stage: 'Preparing output...' })
