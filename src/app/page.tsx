@@ -476,7 +476,7 @@ export default function Home() {
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Enter the message to be encrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm"
+                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
                     />
                   </div>
                 )}
@@ -579,7 +579,7 @@ export default function Home() {
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Enter the message to be decrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm"
+                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
                     />
                   </div>
                 )}
