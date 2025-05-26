@@ -3,10 +3,10 @@ import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 
 import '@/app/globals.css'
+import Header from '@/components/Header'
 import { Providers } from '@/components/providers'
 import Aurora from '@/components/reactbits/Aurora'
 import Particles from '@/components/reactbits/Particles'
-import Header from '@/components/Header'
 
 const inter = Inter({ subsets: ['latin'] })
 
