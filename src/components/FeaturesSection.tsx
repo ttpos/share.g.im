@@ -14,7 +14,7 @@ export default function FeaturesSection() {
       >
         <div className="flex items-center gap-3">
           <Info className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-          <span className="text-base sm:text-lg font-semibold text-white">Features</span>
+          <span className="text-base sm:text-lg font-semibold">Features</span>
         </div>
         <ChevronDown
           className={cn(

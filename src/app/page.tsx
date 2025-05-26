@@ -13,10 +13,8 @@ import FeaturesSection from '@/components/FeaturesSection'
 import { FileInfoDisplay } from '@/components/FileInfoDisplay'
 import ModeSwitcher from '@/components/ModeSwitcher'
 import ProgressIndicator from '@/components/ProgressIndicator'
-import GradientText from '@/components/reactbits/GradientText'
-import ShinyText from '@/components/reactbits/ShinyText'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -392,21 +390,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6">
-      <Card className="w-full max-w-xl mx-auto border-none bg-card/20 backdrop-blur-lg p-4 sm:p-6 md:p-8 transition-all duration-300 rounded-2xl">
-        <CardHeader className="text-center space-y-2 sm:space-y-3">
-          <GradientText className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent flex items-center justify-center gap-2 sm:gap-3">
-            SecureVault
-          </GradientText>
-          <ShinyText
-            text="ECIES File & Message Encryption Tool"
-            disabled={false}
-            speed={3}
-            className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium"
-          />
-        </CardHeader>
-
-        <CardContent className="px-2 sm:px-4 space-y-6 sm:space-y-8">
+    <>
+      <Card className="border-none bg-card/20 backdrop-blur-lg">
+        <CardContent className="px-4 space-y-6 sm:space-y-8">
           <ModeSwitcher value={pathname === '/password' ? 'pwd' : 'puk'} />
           {/* Hidden file input */}
           <Input
@@ -444,7 +430,7 @@ export default function Home() {
                         setInputMode('file')
                         setTimeout(() => fileInputRef.current?.click(), 100)
                       }}
-                      className="flex-1 flex items-center justify-center text-white"
+                      className="flex-1 flex items-center justify-center dark:text-white"
                     >
                       <Upload className="w-4 h-4" />
                       File
@@ -452,7 +438,7 @@ export default function Home() {
                     <Button
                       variant={inputMode === 'message' ? 'default' : 'outline'}
                       onClick={() => setInputMode('message')}
-                      className="flex-1 flex items-center justify-center text-white"
+                      className="flex-1 flex items-center justify-center dark:text-white"
                     >
                       <FileText className="w-4 h-4" />
                       Messages
@@ -719,6 +705,6 @@ export default function Home() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

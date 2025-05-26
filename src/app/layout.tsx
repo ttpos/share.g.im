@@ -6,6 +6,7 @@ import '@/app/globals.css'
 import { Providers } from '@/components/providers'
 import Aurora from '@/components/reactbits/Aurora'
 import Particles from '@/components/reactbits/Particles'
+import Header from '@/components/Header'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -89,7 +90,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           <BackgroundEffects />
-          {children}
+          <main className="flex flex-col min-h-screen bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white">
+            <div className="container mx-auto px-4 py-12 flex flex-col items-center flex-1">
+              <Header />
+
+              {children}
+            </div>
+          </main>
           <Toaster
             richColors
             position="top-right"
