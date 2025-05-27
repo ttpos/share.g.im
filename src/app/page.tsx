@@ -110,10 +110,11 @@ export default function Home() {
   const handleDownloadDecrypted = useCallback(() => {
     if (decryptedData) {
       const timestamp = generateTimestamp()
-      downloadFile(decryptedData, `${timestamp}.txt`)
+      const extension = fileInfo?.originalExtension || 'txt'
+      downloadFile(decryptedData, `${timestamp}.${extension}`)
       toast.success('File downloaded')
     }
-  }, [decryptedData])
+  }, [decryptedData, fileInfo])
 
   // Handle file download with appropriate naming
   const handleDownload = useCallback(() => {
@@ -274,6 +275,7 @@ export default function Home() {
           }
           worker.postMessage({
             mode,
+            encryptionMode: 'pubk',
             file: selectedFile,
             filename: selectedFile.name,
             publicKey,
@@ -326,6 +328,7 @@ export default function Home() {
           }
           worker.postMessage({
             mode,
+            encryptionMode: 'pubk',
             file,
             filename: file.name,
             publicKey,

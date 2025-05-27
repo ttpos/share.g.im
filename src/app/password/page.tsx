@@ -43,7 +43,7 @@ export default function PasswordPage() {
 
   // Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../../workers/pwdCryptoWorker.ts', import.meta.url))
+    workerRef.current = new Worker(new URL('../../workers/cryptoWorker.ts', import.meta.url))
     return () => workerRef.current?.terminate()
   }, [])
 
@@ -178,6 +178,7 @@ export default function PasswordPage() {
           }
           worker.postMessage({
             mode,
+            encryptionMode: 'pwd',
             file: selectedFile,
             filename: selectedFile.name,
             password,
@@ -204,6 +205,7 @@ export default function PasswordPage() {
             const decodedText = Buffer.from(textInput.trim(), 'base64')
             file = new File([decodedText], `encrypted_${generateTimestamp()}.enc`, { type: 'application/octet-stream' })
           } catch (error) {
+            console.error('Invalid Base64 input for decryption:', error)
             throw new Error('Invalid Base64 input for decryption')
           }
         }
@@ -224,6 +226,7 @@ export default function PasswordPage() {
           }
           worker.postMessage({
             mode,
+            encryptionMode: 'pwd',
             file,
             filename: file.name,
             password,
