@@ -11,13 +11,12 @@ import * as ecies from 'eciesjs'
 const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB chunks for processing
 const BUFFER_SIZE = 10 * 1024 * 1024 // 10MB buffer for streaming
 const MAX_MEMORY_USAGE = 100 * 1024 * 1024 // 100MB max memory per operation
-const STREAM_MAGIC_BYTES = 'ns2' // Different magic bytes for streaming format
 const HEADER_VERSION = 1 // Version for future compatibility
 
 // Enhanced Argon2 options
 const ARGON_OPTIONS = {
   t: 3,
-  m: 65536,
+  m: 1280,
   p: 4,
   maxmem: 2 ** 32 - 1
 }
