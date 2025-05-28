@@ -29,7 +29,7 @@ import {
 } from '@/lib/utils'
 import { FileInfo, KeyPair } from '@/types'
 
-// Main page component for file and message encryption/decryption
+// Main page component for file and message encryption/decryption (Public Key Mode)
 export default function Home() {
   const pathname = usePathname()
 
@@ -41,9 +41,9 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [inputMode, setInputMode] = useState<'file' | 'message'>('file')
   const [encryptedText, setEncryptedText] = useState('')
-  const [encryptedData, setEncryptedData] = useState<ArrayBuffer | null>(null) // Store original encrypted data
-  const [decryptedText, setDecryptedText] = useState('') // Store decrypted text for dialog
-  const [decryptedData, setDecryptedData] = useState<ArrayBuffer | null>(null) // Store decrypted data for download
+  const [encryptedData, setEncryptedData] = useState<Blob | null>(null)
+  const [decryptedText, setDecryptedText] = useState('')
+  const [decryptedData, setDecryptedData] = useState<Blob | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingStage, setProcessingStage] = useState('')
@@ -110,10 +110,11 @@ export default function Home() {
   const handleDownloadDecrypted = useCallback(() => {
     if (decryptedData) {
       const timestamp = generateTimestamp()
-      downloadFile(decryptedData, `${timestamp}.txt`)
+      const extension = fileInfo?.originalExtension || 'txt'
+      downloadFile(decryptedData, `${timestamp}.${extension}`)
       toast.success('File downloaded')
     }
-  }, [decryptedData])
+  }, [decryptedData, fileInfo])
 
   // Handle file download with appropriate naming
   const handleDownload = useCallback(() => {
@@ -130,21 +131,9 @@ export default function Home() {
     }
   }, [encryptedData, decryptedData, fileInfo])
 
-  // Read file as chunks
-  const readFileChunk = (file: File, offset: number, chunkSize: number): Promise<ArrayBuffer> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      const blob = file.slice(offset, offset + chunkSize)
-      reader.onload = () => resolve(reader.result as ArrayBuffer)
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsArrayBuffer(blob)
-    })
-  }
-
   // Download data as a file
-  const downloadFile = (data: ArrayBuffer, filename: string) => {
-    const blob = new Blob([data])
-    const url = URL.createObjectURL(blob)
+  const downloadFile = (data: Blob, filename: string) => {
+    const url = URL.createObjectURL(data)
     const a = document.createElement('a')
     a.href = url
     a.download = filename
@@ -237,6 +226,7 @@ export default function Home() {
       // Validate and prepare keys
       let publicKey: string | undefined
       let privateKey: string | undefined
+
       if (mode === 'encrypt') {
         if (isBase58String(keyInput)) {
           const validation = validateBase58PublicKey(keyInput)
@@ -265,21 +255,8 @@ export default function Home() {
 
       if (inputMode === 'file' && selectedFile) {
         // Process file input
-        const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB chunks
-        const chunks: ArrayBuffer[] = []
-        const fileSize = selectedFile.size
-        let offset = 0
-        while (offset < fileSize) {
-          const chunk = await readFileChunk(selectedFile, offset, CHUNK_SIZE)
-          chunks.push(chunk)
-          offset += CHUNK_SIZE
-        }
-        if (fileSize > 50 * 1024 * 1024) {
-          toast.warning('Large file detected. Processing may be slow on client-side.')
-        }
-
         const result = await new Promise<{
-          data: ArrayBuffer;
+          data: Blob;
           filename: string;
           originalExtension?: string;
         }>((resolve, reject) => {
@@ -298,7 +275,8 @@ export default function Home() {
           }
           worker.postMessage({
             mode,
-            chunks,
+            encryptionMode: 'pubk',
+            file: selectedFile,
             filename: selectedFile.name,
             publicKey,
             privateKey,
@@ -317,17 +295,13 @@ export default function Home() {
         toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
       } else if (inputMode === 'message') {
         // Process text input
-        let chunks: ArrayBuffer[] = []
+        let file: File
         if (mode === 'encrypt') {
-          const textBuffer = new TextEncoder().encode(textInput)
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-expect-error
-          // TODO: pending
-          chunks = [textBuffer.buffer]
+          file = new File([textInput], `text_${generateTimestamp()}.txt`, { type: 'text/plain' })
         } else {
           try {
             const decodedText = Buffer.from(textInput.trim(), 'base64')
-            chunks = [decodedText.buffer]
+            file = new File([decodedText], `encrypted_${generateTimestamp()}.enc`, { type: 'application/octet-stream' })
           } catch (error) {
             console.error('Invalid Base64 input for decryption:', error)
             throw new Error('Invalid Base64 input for decryption')
@@ -335,7 +309,7 @@ export default function Home() {
         }
 
         const result = await new Promise<{
-          data: ArrayBuffer;
+          data: Blob;
           filename: string;
           originalExtension?: string;
         }>((resolve, reject) => {
@@ -352,12 +326,11 @@ export default function Home() {
               resolve(data)
             }
           }
-          const timestamp = generateTimestamp()
-          const filename = mode === 'encrypt' ? `encrypted_text_${timestamp}.enc` : `${timestamp}.txt`
           worker.postMessage({
             mode,
-            chunks,
-            filename,
+            encryptionMode: 'pubk',
+            file,
+            filename: file.name,
             publicKey,
             privateKey,
             isTextMode: true
@@ -365,12 +338,14 @@ export default function Home() {
         })
 
         if (mode === 'encrypt') {
-          const encrypted = Buffer.from(result.data).toString('base64')
+          const arrayBuffer = await result.data.arrayBuffer()
+          const encrypted = Buffer.from(arrayBuffer).toString('base64')
           setEncryptedText(encrypted)
           setEncryptedData(result.data)
           setIsDialogOpen(true)
         } else {
-          const decrypted = new TextDecoder().decode(result.data)
+          const arrayBuffer = await result.data.arrayBuffer()
+          const decrypted = new TextDecoder().decode(arrayBuffer)
           setDecryptedText(decrypted)
           setDecryptedData(result.data)
           setIsDialogOpen(true)
@@ -476,7 +451,7 @@ export default function Home() {
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Enter the message to be encrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm"
+                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
                     />
                   </div>
                 )}
@@ -579,7 +554,7 @@ export default function Home() {
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Enter the message to be decrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm"
+                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
                     />
                   </div>
                 )}

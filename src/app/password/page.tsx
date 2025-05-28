@@ -20,9 +20,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { generateTimestamp, getFilenameWithoutExtension, identifyEncryptionMode } from '@/lib/utils'
 import { FileInfo } from '@/types'
 
+// Password page component for file and message encryption/decryption
 export default function PasswordPage() {
   const pathname = usePathname()
 
+  // State for user inputs and processing
   const [password, setPassword] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
@@ -30,17 +32,18 @@ export default function PasswordPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [inputMode, setInputMode] = useState<'file' | 'message'>('file')
   const [encryptedText, setEncryptedText] = useState('')
-  const [encryptedData, setEncryptedData] = useState<ArrayBuffer | null>(null)
+  const [encryptedData, setEncryptedData] = useState<Blob | null>(null)
   const [decryptedText, setDecryptedText] = useState('')
-  const [decryptedData, setDecryptedData] = useState<ArrayBuffer | null>(null)
+  const [decryptedData, setDecryptedData] = useState<Blob | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingStage, setProcessingStage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const workerRef = useRef<Worker | null>(null)
 
+  // Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../../workers/pwdCryptoWorker.ts', import.meta.url))
+    workerRef.current = new Worker(new URL('../../workers/cryptoWorker.ts', import.meta.url))
     return () => workerRef.current?.terminate()
   }, [])
 
@@ -60,6 +63,7 @@ export default function PasswordPage() {
     }
   }, [])
 
+  // Download encrypted data
   const handleDownloadEncrypted = useCallback(() => {
     if (encryptedData) {
       const timestamp = generateTimestamp()
@@ -68,14 +72,17 @@ export default function PasswordPage() {
     }
   }, [encryptedData])
 
+  // Download decrypted data
   const handleDownloadDecrypted = useCallback(() => {
     if (decryptedData) {
       const timestamp = generateTimestamp()
-      downloadFile(decryptedData, `${timestamp}.txt`)
+      const extension = fileInfo?.originalExtension || 'txt'
+      downloadFile(decryptedData, `${timestamp}.${extension}`)
       toast.success('File downloaded')
     }
-  }, [decryptedData])
+  }, [decryptedData, fileInfo])
 
+  // Handle file download with appropriate naming
   const handleDownload = useCallback(() => {
     if (encryptedData && fileInfo) {
       const timestamp = generateTimestamp()
@@ -90,19 +97,9 @@ export default function PasswordPage() {
     }
   }, [encryptedData, decryptedData, fileInfo])
 
-  const readFileChunk = (file: File, offset: number, chunkSize: number): Promise<ArrayBuffer> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      const blob = file.slice(offset, offset + chunkSize)
-      reader.onload = () => resolve(reader.result as ArrayBuffer)
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsArrayBuffer(blob)
-    })
-  }
-
-  const downloadFile = (data: ArrayBuffer, filename: string) => {
-    const blob = new Blob([data])
-    const url = URL.createObjectURL(blob)
+  // Download data as a file
+  const downloadFile = (data: Blob, filename: string) => {
+    const url = URL.createObjectURL(data)
     const a = document.createElement('a')
     a.href = url
     a.download = filename
@@ -113,6 +110,7 @@ export default function PasswordPage() {
     URL.revokeObjectURL(url)
   }
 
+  // Copy text to clipboard
   const handleCopyText = async (message: string) => {
     try {
       await navigator.clipboard.writeText(message)
@@ -123,6 +121,7 @@ export default function PasswordPage() {
     }
   }
 
+  // Reset all states
   const clearState = () => {
     setPassword('')
     setSelectedFile(null)
@@ -138,6 +137,7 @@ export default function PasswordPage() {
     setProcessingStage('')
   }
 
+  // Process encryption or decryption
   const processInput = async (mode: 'encrypt' | 'decrypt') => {
     if (inputMode === 'file' && !selectedFile) {
       toast.error('Please select a file first')
@@ -161,24 +161,8 @@ export default function PasswordPage() {
       if (!worker) throw new Error('Web Worker not initialized')
 
       if (inputMode === 'file' && selectedFile) {
-        const CHUNK_SIZE = 5 * 1024 * 1024
-        const chunks: ArrayBuffer[] = []
-        const fileSize = selectedFile.size
-        let offset = 0
-        while (offset < fileSize) {
-          const chunk = await readFileChunk(selectedFile, offset, CHUNK_SIZE)
-          chunks.push(chunk)
-          offset += CHUNK_SIZE
-        }
-        if (fileSize > 50 * 1024 * 1024) {
-          toast.warning('Large file detected. Processing may be slow on client-side.')
-        }
-
-        const result = await new Promise<{
-          data: ArrayBuffer;
-          filename: string;
-          originalExtension?: string;
-        }>((resolve, reject) => {
+        // Process file input
+        const result = await new Promise<{ data: Blob; filename: string; originalExtension?: string }>((resolve, reject) => {
           worker.onmessage = (e: MessageEvent) => {
             const { data, error, progress, stage } = e.data
             if (error) {
@@ -194,10 +178,10 @@ export default function PasswordPage() {
           }
           worker.postMessage({
             mode,
-            chunks,
+            encryptionMode: 'pwd',
+            file: selectedFile,
             filename: selectedFile.name,
             password,
-            encryptionMode: 'password',
             isTextMode: false
           })
         })
@@ -212,28 +196,21 @@ export default function PasswordPage() {
         }
         toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
       } else if (inputMode === 'message') {
-        let chunks: ArrayBuffer[] = []
+        // Process text input
+        let file: File
         if (mode === 'encrypt') {
-          const textBuffer = new TextEncoder().encode(textInput)
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-expect-error
-          // TODO: pending
-          chunks = [textBuffer]
+          file = new File([textInput], `text_${generateTimestamp()}.txt`, { type: 'text/plain' })
         } else {
           try {
             const decodedText = Buffer.from(textInput.trim(), 'base64')
-            chunks = [decodedText.buffer]
+            file = new File([decodedText], `encrypted_${generateTimestamp()}.enc`, { type: 'application/octet-stream' })
           } catch (error) {
             console.error('Invalid Base64 input for decryption:', error)
             throw new Error('Invalid Base64 input for decryption')
           }
         }
 
-        const result = await new Promise<{
-          data: ArrayBuffer;
-          filename: string;
-          originalExtension?: string;
-        }>((resolve, reject) => {
+        const result = await new Promise<{ data: Blob; filename: string; originalExtension?: string }>((resolve, reject) => {
           worker.onmessage = (e: MessageEvent) => {
             const { data, error, progress, stage } = e.data
             if (error) {
@@ -247,25 +224,25 @@ export default function PasswordPage() {
               resolve(data)
             }
           }
-          const timestamp = generateTimestamp()
-          const filename = mode === 'encrypt' ? `encrypted_text_${timestamp}.enc` : `${timestamp}.txt`
           worker.postMessage({
             mode,
-            chunks,
-            filename,
+            encryptionMode: 'pwd',
+            file,
+            filename: file.name,
             password,
-            encryptionMode: 'password',
             isTextMode: true
           })
         })
 
         if (mode === 'encrypt') {
-          const encrypted = Buffer.from(result.data).toString('base64')
+          const arrayBuffer = await result.data.arrayBuffer()
+          const encrypted = Buffer.from(arrayBuffer).toString('base64')
           setEncryptedText(encrypted)
           setEncryptedData(result.data)
           setIsDialogOpen(true)
         } else {
-          const decrypted = new TextDecoder().decode(result.data)
+          const arrayBuffer = await result.data.arrayBuffer()
+          const decrypted = new TextDecoder().decode(arrayBuffer)
           setDecryptedText(decrypted)
           setDecryptedData(result.data)
           setIsDialogOpen(true)
@@ -320,7 +297,7 @@ export default function PasswordPage() {
                         setInputMode('file')
                         setTimeout(() => fileInputRef.current?.click(), 100)
                       }}
-                      className="flex-1 flex items-center justify-center"
+                      className="flex-1 flex items-center justify-center dark:text-white"
                     >
                       <Upload className="w-4 h-4" />
                       File
@@ -328,7 +305,7 @@ export default function PasswordPage() {
                     <Button
                       variant={inputMode === 'message' ? 'default' : 'outline'}
                       onClick={() => setInputMode('message')}
-                      className="flex-1 flex items-center justify-center"
+                      className="flex-1 flex items-center justify-center dark:text-white"
                     >
                       <FileText className="w-4 h-4" />
                       Messages
@@ -364,7 +341,7 @@ export default function PasswordPage() {
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Enter the message to be encrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm"
+                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
                     />
                   </div>
                 )}
@@ -420,7 +397,7 @@ export default function PasswordPage() {
                         setInputMode('file')
                         setTimeout(() => fileInputRef.current?.click(), 100)
                       }}
-                      className="flex-1 flex items-center justify-center text-white"
+                      className="flex-1 flex items-center justify-center dark:text-white"
                     >
                       <Upload className="w-4 h-4" />
                       File
@@ -428,7 +405,7 @@ export default function PasswordPage() {
                     <Button
                       variant={inputMode === 'message' ? 'default' : 'outline'}
                       onClick={() => setInputMode('message')}
-                      className="flex-1 flex items-center justify-center text-white"
+                      className="flex-1 flex items-center justify-center dark:text-white"
                     >
                       <FileText className="w-4 h-4" />
                       Messages
@@ -463,7 +440,7 @@ export default function PasswordPage() {
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Enter the message to be decrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm"
+                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
                     />
                   </div>
                 )}

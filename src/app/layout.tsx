@@ -91,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <BackgroundEffects />
           <main className="flex flex-col min-h-screen bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white">
-            <div className="container mx-auto px-4 py-12 flex flex-col items-center flex-1">
+            <div className="max-w-xl mx-auto px-4 py-12 flex flex-col items-center flex-1">
               <Header />
 
               {children}
