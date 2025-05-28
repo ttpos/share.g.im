@@ -199,7 +199,6 @@ function createStreamHeader(
   signature?: Uint8Array
 ): Uint8Array {
   const magicBytes = isPasswordMode ? 'ns1' : 'ns0'
-  console.log('🚀 ~ magicBytes:', magicBytes)
   const header = {
     version: HEADER_VERSION,
     fileSize,
@@ -329,6 +328,10 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
       // Read chunk
       const chunk = await readFileChunk(file, start, end)
 
+      // Simulate sub-progress for encryption within the chunk
+      onProgress?.((i / totalChunks) * 100)
+      await new Promise(resolve => setTimeout(resolve, 0))
+
       // Encrypt chunk
       const encryptedChunk = await cipher.encryptChunk(new Uint8Array(chunk))
       chunks.push(encryptedChunk)
@@ -345,7 +348,6 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
 
     // Create blob from chunks
     return new Blob(chunks, { type: 'application/octet-stream' })
-
   } finally {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
@@ -405,6 +407,10 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
       const actualChunkSize = findChunkBoundary(encryptedArray, metadataLength)
       const chunkData = encryptedArray.slice(0, actualChunkSize)
 
+      // Sub-progress for decryption
+      onProgress?.((i / header.totalChunks) * 100)
+      await new Promise(resolve => setTimeout(resolve, 0))
+
       // Decrypt chunk
       const { chunk } = await cipher.decryptChunk(chunkData)
       chunks.push(chunk)
@@ -422,7 +428,6 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
     // Create blob with original mime type
     const mimeType = getMimeType(header.ext)
     return new Blob(chunks, { type: mimeType })
-
   } finally {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
