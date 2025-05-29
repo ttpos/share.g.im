@@ -456,7 +456,7 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
 }
 
 // Stream decrypt with password
-export async function streamDecryptWithPassword(options: StreamDecryptOptions): Promise<Blob> {
+export async function streamDecryptWithPassword(options: StreamDecryptOptions): Promise<{ file: Blob; signatureValid?: boolean }> {
   const { file, password, onProgress, onStage } = options
 
   if (!password) {
@@ -499,7 +499,7 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
     cipher.destroy()
     onStage?.('Creating decrypted file...')
 
-    return new Blob(chunks, { type: getMimeType(header.e) })
+    return { file: new Blob(chunks, { type: getMimeType(header.e) }), signatureValid: undefined }
   } finally {
     secureClear(key.buffer)
   }
@@ -572,7 +572,7 @@ export async function streamEncryptWithPublicKey(options: StreamEncryptOptions):
 }
 
 // Stream decrypt with ECIES (private key)
-export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions): Promise<Blob> {
+export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions): Promise<{ file: Blob; signatureValid?: boolean }> {
   const { file, receiver, sender, onProgress, onStage } = options
 
   if (!receiver) {
@@ -631,7 +631,7 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
     cipher.destroy()
     onStage?.('Creating decrypted file...')
 
-    return new Blob(chunks, { type: getMimeType(header.e) })
+    return { file: new Blob(chunks, { type: getMimeType(header.e) }), signatureValid: isValid }
   } finally {
     secureClear(symmetricKey.buffer)
   }
@@ -644,34 +644,20 @@ export async function encryptText(
   receiver?: Uint8Array,
   sender?: { privKeyBytes: Uint8Array }
 ): Promise<string> {
-  const textBytes = utf8ToBytes(text)
-
-  const magicBytes = password ? MAGIC_BYTES.PASSWORD : (sender ? MAGIC_BYTES.SIGNED : MAGIC_BYTES.PUBLIC_KEY)
-  let header = utf8ToBytes(magicBytes)
-
+  const file = new File([text], 'source.txt', { type: 'text/plain' });
+  let blob: Blob
   if (password) {
-    const salt = randomBytes(CONFIG.SIZES.SALT)
-    const key = argon2id(password, salt, CONFIG.ARGON2)
-    const aes = managedNonce(gcm)(key)
-    const encrypted = aes.encrypt(textBytes)
-
-    const combined = concatBytes(header, salt, encrypted)
-    return btoa(String.fromCharCode(...combined))
+    blob = await streamCrypto.encrypt.withPassword({ file, password, receiver, sender })
   } else if (receiver) {
-    const encrypted = ecies.encrypt(Buffer.from(receiver), Buffer.from(textBytes))
-
-    if (sender) {
-      const textHash = sha256(textBytes)
-      const sig = secp256k1.sign(textHash, sender.privKeyBytes)
-      const signature = sig.toCompactRawBytes()
-      header = concatBytes(header, signature)
-    }
-
-    const combined = concatBytes(utf8ToBytes(magicBytes), header, encrypted)
-    return btoa(String.fromCharCode(...combined))
+    blob = await streamCrypto.encrypt.withPublicKey({ file, receiver, sender })
   } else {
-    throw new Error('Either password or receiver public key is required')
+    throw new Error('Either password or receiver is required')
   }
+
+  // Convert blob to base64
+  const arrayBuffer = await blob.arrayBuffer()
+  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+  return base64
 }
 
 export async function decryptText(
@@ -684,47 +670,17 @@ export async function decryptText(
     atob(encryptedText).split('').map(char => char.charCodeAt(0))
   )
 
-  const magicBytes = bytesToUtf8(encryptedData.slice(0, 3))
-  if (!Object.values(MAGIC_BYTES).includes(magicBytes as MagicBytesType)) {
-    throw new Error('Invalid format')
-  }
-
-  if (magicBytes === MAGIC_BYTES.PASSWORD) {
-    if (!password) throw new Error(ERROR_MESSAGES.PASSWORD_MODE_REQUIRED)
-
-    const salt = encryptedData.slice(3, 19)
-    const encrypted = encryptedData.slice(19)
-
-    const key = argon2id(password, salt, CONFIG.ARGON2)
-    const aes = managedNonce(gcm)(key)
-    const decrypted = aes.decrypt(encrypted)
-
-    return { text: bytesToUtf8(decrypted) }
+  const file = new File([encryptedData], 'encrypted.txt', { type: 'text/plain' });
+  let result: { file: Blob; signatureValid?: boolean }
+  if (password) {
+    result = await streamCrypto.decrypt.withPassword({ file, password, receiver, sender })
+  } else if (receiver) {
+    result = await streamCrypto.decrypt.withPrivateKey({ file, receiver, sender })
   } else {
-    if (!receiver) throw new Error(ERROR_MESSAGES.PUBKEY_MODE_REQUIRED)
-
-    let dataToDecrypt: Uint8Array
-    let signature: Uint8Array | undefined
-
-    if (magicBytes === MAGIC_BYTES.SIGNED) {
-      signature = encryptedData.slice(3, 67)
-      dataToDecrypt = encryptedData.slice(67)
-    } else {
-      dataToDecrypt = encryptedData.slice(3)
-    }
-
-    const decrypted = ecies.decrypt(Buffer.from(receiver), Buffer.from(dataToDecrypt))
-    const text = bytesToUtf8(decrypted)
-
-    if (signature && sender) {
-      const textHash = sha256(decrypted)
-      const sig = secp256k1.Signature.fromCompact(signature)
-      const signatureValid = secp256k1.verify(sig, textHash, sender)
-      return { text, signatureValid }
-    }
-
-    return { text }
+    throw new Error('Either password or receiver is required')
   }
+
+  return { text: await result.file.text(), signatureValid: result.signatureValid }
 }
 
 // Export main streaming functions
