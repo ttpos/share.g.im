@@ -5,8 +5,8 @@ import { bytesToUtf8, concatBytes, utf8ToBytes } from '@noble/ciphers/utils'
 import { managedNonce, randomBytes } from '@noble/ciphers/webcrypto'
 import { secp256k1 } from '@noble/curves/secp256k1'
 import { argon2id } from '@noble/hashes/argon2'
-import * as ecies from 'eciesjs'
 import { sha256 } from '@noble/hashes/sha2'
+import * as ecies from 'eciesjs'
 
 // Types and interfaces
 interface HeaderData {
@@ -321,7 +321,7 @@ function createStreamHeader(
   key?: Uint8Array,
   salt?: Uint8Array,
   receiver?: Uint8Array,
-  signature?: Uint8Array,
+  signature?: Uint8Array
 ): Uint8Array {
   try {
     const magicBytes = isPasswordMode ? MAGIC_BYTES.PASSWORD : (signature ? MAGIC_BYTES.SIGNED : MAGIC_BYTES.PUBLIC_KEY)
@@ -506,7 +506,7 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
 }
 
 // Stream encrypt with ECIES (public key)
-export async function streamEncryptWithPublicKey(options: StreamEncryptOptions): Promise<Blob> {
+export async function streamEncryptWithPublicKey(options: StreamEncryptOptions) {
   const { file, receiver, sender, onProgress, onStage } = options
 
   if (!receiver) {
@@ -572,7 +572,7 @@ export async function streamEncryptWithPublicKey(options: StreamEncryptOptions):
 }
 
 // Stream decrypt with ECIES (private key)
-export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions): Promise<{ file: Blob; signatureValid?: boolean }> {
+export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions) {
   const { file, receiver, sender, onProgress, onStage } = options
 
   if (!receiver) {
@@ -643,8 +643,8 @@ export async function encryptText(
   password?: string,
   receiver?: Uint8Array,
   sender?: { privKeyBytes: Uint8Array }
-): Promise<string> {
-  const file = new File([text], 'source.txt', { type: 'text/plain' });
+) {
+  const file = new File([text], 'source.txt', { type: 'text/plain' })
   let blob: Blob
   if (password) {
     blob = await streamCrypto.encrypt.withPassword({ file, password, receiver, sender })
@@ -657,7 +657,10 @@ export async function encryptText(
   // Convert blob to base64
   const arrayBuffer = await blob.arrayBuffer()
   const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-  return base64
+  return {
+    blob,
+    base64
+  }
 }
 
 export async function decryptText(
@@ -665,12 +668,12 @@ export async function decryptText(
   password?: string,
   receiver?: Uint8Array,
   sender?: Uint8Array
-): Promise<{ text: string; signatureValid?: boolean }> {
+) {
   const encryptedData = new Uint8Array(
     atob(encryptedText).split('').map(char => char.charCodeAt(0))
   )
 
-  const file = new File([encryptedData], 'encrypted.txt', { type: 'text/plain' });
+  const file = new File([encryptedData], 'encrypted.txt', { type: 'text/plain' })
   let result: { file: Blob; signatureValid?: boolean }
   if (password) {
     result = await streamCrypto.decrypt.withPassword({ file, password, receiver, sender })
