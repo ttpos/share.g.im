@@ -1,6 +1,6 @@
 import { base58 } from '@scure/base'
 
-import { streamEncrypt, streamDecrypt, parseStreamHeader } from '@/lib/crypto-stream'
+import { streamCrypto, parseStreamHeader } from '@/lib/crypto'
 
 // Interface for worker input
 interface WorkerInput {
@@ -54,8 +54,8 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
       }
 
       const result = encryptionMode === 'pubk'
-        ? await streamEncrypt.withPublicKey(options)
-        : await streamEncrypt.withPassword(options)
+        ? await streamCrypto.encrypt.withPublicKey(options)
+        : await streamCrypto.encrypt.withPassword(options)
 
       self.postMessage({ progress: 100, stage: 'Complete!' })
       const outputFilename = isTextMode ? `encrypted_text_${Date.now()}.enc` : `${filename}.enc`
@@ -89,8 +89,8 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
       }
 
       const result = encryptionMode === 'pubk'
-        ? await streamDecrypt.withPrivateKey(options)
-        : await streamDecrypt.withPassword(options)
+        ? await streamCrypto.decrypt.withPrivateKey(options)
+        : await streamCrypto.decrypt.withPassword(options)
 
       self.postMessage({ progress: 100, stage: 'Complete!' })
       const outputExtension = header.ext || (isTextMode ? 'txt' : 'bin')
