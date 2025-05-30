@@ -6,8 +6,8 @@ import { managedNonce, randomBytes } from '@noble/ciphers/webcrypto'
 import { secp256k1 } from '@noble/curves/secp256k1'
 import { argon2id } from '@noble/hashes/argon2'
 import { sha256 } from '@noble/hashes/sha2'
+import { base64 } from '@scure/base'
 import * as ecies from 'eciesjs'
-import { base64 } from '@scure/base';
 
 // Types and interfaces
 interface HeaderData {
@@ -378,7 +378,7 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
     const encryptedHeaderBytes = data.slice(headerOffset, headerLength + saltOffset)
 
     let headerBytes: Uint8Array
-    let key;
+    let key
     if (isPasswordMode && password && salt) {
       key = argon2id(password, salt, CONFIG.ARGON2)
       const aes = managedNonce(gcm)(key)
@@ -679,7 +679,7 @@ export async function decryptText(
   receiver?: Uint8Array,
   sender?: Uint8Array
 ) {
-  const encryptedData = base64.decode(encryptedText);
+  const encryptedData = base64.decode(encryptedText)
 
   const file = new File([encryptedData], 'encrypted.txt', { type: 'text/plain' })
   let result: { file: Blob; signatureValid?: boolean }
