@@ -7,6 +7,7 @@ DIRS_TO_DELETE=(
   "apps/*/.turbo"
   "apps/*/.next"
   "apps/*/out"
+  "apps/*/dist"
   "packages/*/node_modules"
   "packages/*/.turbo"
   "packages/*/dist"
