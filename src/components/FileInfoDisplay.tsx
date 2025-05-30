@@ -9,9 +9,9 @@ interface FileInfoDisplayProps {
 export function FileInfoDisplay({ fileInfo, isDecryptMode = false }: FileInfoDisplayProps) {
   const formatEncryptionMode = (mode: string) => {
     switch (mode) {
-      case 'public-key':
+      case 'pubk':
         return 'Public Key (ECIES)'
-      case 'password':
+      case 'pwd':
         return 'Password (AES-GCM)'
       default:
         return 'Unknown'
