@@ -7,6 +7,7 @@ import { secp256k1 } from '@noble/curves/secp256k1'
 import { argon2id } from '@noble/hashes/argon2'
 import { sha256 } from '@noble/hashes/sha2'
 import * as ecies from 'eciesjs'
+import { base64 } from '@scure/base';
 
 // Types and interfaces
 interface HeaderData {
@@ -374,7 +375,7 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
     const headerOffset = isPasswordMode ? saltOffset + 16 : saltOffset
 
     const salt = isPasswordMode ? data.slice(saltOffset, headerOffset) : undefined
-    const encryptedHeaderBytes = data.slice(headerOffset, headerOffset + headerLength)
+    const encryptedHeaderBytes = data.slice(headerOffset, headerLength + saltOffset)
 
     let headerBytes: Uint8Array
     let key;
@@ -416,6 +417,9 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
   const key = argon2id(password, salt, CONFIG.ARGON2)
 
   try {
+    if (!key) {
+      throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
+    }
     const cipher = new StreamCipher(key)
     const header = createStreamHeader(
       ext,
@@ -449,7 +453,9 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
 
     return new Blob(chunks, { type: 'application/octet-stream' })
   } finally {
-    secureClear(key.buffer)
+    if (key) {
+      secureClear(key.buffer)
+    }
   }
 }
 
@@ -470,14 +476,17 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
     throw new InvalidDataError(ERROR_MESSAGES.NOT_PASSWORD_ENCRYPTED)
   }
 
-  const { header, key } = parseStreamHeader(new Uint8Array(headerData), password, undefined)
-
+  const { header, key, headerLength } = parseStreamHeader(new Uint8Array(headerData), password, undefined)
+  console.log(header, key)
   onStage?.('Deriving decryption key...')
 
   try {
+    if (!key) {
+      throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
+    }
     const cipher = new StreamCipher(key)
     const chunks: Uint8Array[] = []
-    let offset = 0
+    let offset = headerLength
 
     onStage?.('Decrypting file...')
 
@@ -496,7 +505,9 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
 
     return { file: new Blob(chunks, { type: getMimeType(header.e) }), signatureValid: undefined }
   } finally {
-    secureClear(key.buffer)
+    if (key) {
+      secureClear(key.buffer)
+    }
   }
 }
 
@@ -595,6 +606,9 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
   const symmetricKey = ecies.decrypt(receiver, encryptedKey)
 
   try {
+    if (!symmetricKey) {
+      throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
+    }
     const cipher = new StreamCipher(symmetricKey)
     const chunks: Uint8Array[] = []
     let offset = keyLengthOffset + 2 + keyLength
@@ -628,7 +642,9 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
 
     return { file: new Blob(chunks, { type: getMimeType(header.e) }), signatureValid: isValid }
   } finally {
-    secureClear(symmetricKey.buffer)
+    if (symmetricKey) {
+      secureClear(symmetricKey.buffer)
+    }
   }
 }
 
@@ -651,10 +667,9 @@ export async function encryptText(
 
   // Convert blob to base64
   const arrayBuffer = await blob.arrayBuffer()
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
   return {
     blob,
-    base64
+    base64: base64.encode(new Uint8Array(arrayBuffer))
   }
 }
 
@@ -664,9 +679,7 @@ export async function decryptText(
   receiver?: Uint8Array,
   sender?: Uint8Array
 ) {
-  const encryptedData = new Uint8Array(
-    atob(encryptedText).split('').map(char => char.charCodeAt(0))
-  )
+  const encryptedData = base64.decode(encryptedText);
 
   const file = new File([encryptedData], 'encrypted.txt', { type: 'text/plain' })
   let result: { file: Blob; signatureValid?: boolean }
