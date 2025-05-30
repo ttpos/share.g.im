@@ -12,7 +12,6 @@ import ProgressIndicator from '@/components/ProgressIndicator'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -41,13 +40,11 @@ export default function PasswordPage() {
   const workerRef = useRef<Worker | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Initialize Web Worker
   useEffect(() => {
     workerRef.current = new Worker(new URL('../../workers/cryptoWorker.ts', import.meta.url))
     return () => workerRef.current?.terminate()
   }, [])
 
-  // Handle file selection
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null
     setSelectedFile(file)
@@ -66,7 +63,6 @@ export default function PasswordPage() {
     }
   }, [])
 
-  // Handle file drop
   const handleFileDrop = useCallback(async (e: React.DragEvent<HTMLTextAreaElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -85,24 +81,20 @@ export default function PasswordPage() {
     }
   }, [])
 
-  // Handle drag over to allow drop
   const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
     e.preventDefault()
     e.stopPropagation()
   }
 
-  // Trigger file input click
   const triggerFileInput = () => {
     fileInputRef.current?.click()
   }
 
-  // Handle text input change
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTextInput(e.target.value)
     setInputType('message')
   }
 
-  // Clear selected file
   const handleClearFile = () => {
     setSelectedFile(null)
     setFileInfo(null)
@@ -111,26 +103,23 @@ export default function PasswordPage() {
     toast.success('File cleared. You can now input text or select a new file.')
   }
 
-  // Download encrypted data
   const handleDownloadEncrypted = useCallback(() => {
     if (encryptedData) {
       const timestamp = generateTimestamp()
-      downloadFile(encryptedData, `encrypted_text_${timestamp}.enc`)
-      toast.success('File downloaded')
+      downloadFile(encryptedData, `encrypted_${inputType === 'message' ? 'text' : getFilenameWithoutExtension(fileInfo?.name || 'file')}_${timestamp}.enc`)
+      toast.success('Encrypted file downloaded')
     }
-  }, [encryptedData])
+  }, [encryptedData, fileInfo, inputType])
 
-  // Download decrypted data
   const handleDownloadDecrypted = useCallback(() => {
     if (decryptedData) {
       const timestamp = generateTimestamp()
       const extension = fileInfo?.originalExtension || 'txt'
-      downloadFile(decryptedData, `${timestamp}.${extension}`)
-      toast.success('File downloaded')
+      downloadFile(decryptedData, `decrypted_${timestamp}.${extension}`)
+      toast.success('Decrypted file downloaded')
     }
   }, [decryptedData, fileInfo])
 
-  // Handle file download with appropriate naming
   const handleDownload = useCallback(() => {
     if (encryptedData && fileInfo) {
       const timestamp = generateTimestamp()
@@ -139,8 +128,8 @@ export default function PasswordPage() {
       toast.success('Encrypted file downloaded successfully')
     } else if (decryptedData && fileInfo) {
       const timestamp = generateTimestamp()
-      const extension = fileInfo.originalExtension || 'bin'
-      downloadFile(decryptedData, `${timestamp}.${extension}`)
+      const extension = fileInfo.originalExtension || 'txt'
+      downloadFile(decryptedData, `decrypted_${timestamp}.${extension}`)
       toast.success('Decrypted file downloaded successfully')
     } else if (encryptedData && inputType === 'message') {
       handleDownloadEncrypted()
@@ -149,7 +138,6 @@ export default function PasswordPage() {
     }
   }, [encryptedData, decryptedData, fileInfo, inputType, handleDownloadEncrypted, handleDownloadDecrypted])
 
-  // Download data as a file
   const downloadFile = (data: Blob, filename: string) => {
     const url = URL.createObjectURL(data)
     const a = document.createElement('a')
@@ -162,7 +150,6 @@ export default function PasswordPage() {
     URL.revokeObjectURL(url)
   }
 
-  // Copy text to clipboard
   const handleCopyText = async (message: string) => {
     try {
       await navigator.clipboard.writeText(message)
@@ -173,7 +160,6 @@ export default function PasswordPage() {
     }
   }
 
-  // Reset all states
   const clearState = () => {
     setPassword('')
     setSelectedFile(null)
@@ -190,7 +176,6 @@ export default function PasswordPage() {
     setInputType('message')
   }
 
-  // Process encryption or decryption
   const processInput = async (mode: 'encrypt' | 'decrypt') => {
     if (inputType === 'file' && !selectedFile) {
       toast.error('Please select a file by clicking "Select File" or dragging it')
@@ -213,32 +198,38 @@ export default function PasswordPage() {
       const worker = workerRef.current
       if (!worker) throw new Error('Web Worker not initialized')
 
-      if (inputType === 'file' && selectedFile) {
-        // Process file input
-        const result = await new Promise<{ data: Blob; filename: string; originalExtension?: string }>((resolve, reject) => {
-          worker.onmessage = (e: MessageEvent) => {
-            const { data, error, progress, stage } = e.data
-            if (error) {
-              reject(new Error(error))
-            } else if (progress !== undefined) {
-              setProcessingProgress(progress)
-              if (stage) {
-                setProcessingStage(stage)
-              }
-            } else if (data) {
-              resolve(data)
+      const result = await new Promise<{
+        data: Blob
+        base64?: string
+        filename: string
+        originalExtension?: string
+        signatureValid?: boolean
+      }>((resolve, reject) => {
+        worker.onmessage = (e: MessageEvent) => {
+          const { data, error, progress, stage } = e.data
+          if (error) {
+            reject(new Error(error))
+          } else if (progress !== undefined) {
+            setProcessingProgress(progress)
+            if (stage) {
+              setProcessingStage(stage)
             }
+          } else if (data) {
+            resolve(data)
           }
-          worker.postMessage({
-            mode,
-            encryptionMode: 'pwd',
-            file: selectedFile,
-            filename: selectedFile.name,
-            password,
-            isTextMode: false
-          })
+        }
+        worker.postMessage({
+          mode,
+          encryptionMode: 'pwd',
+          file: inputType === 'file' ? selectedFile : undefined,
+          filename: inputType === 'file' ? selectedFile?.name : undefined,
+          text: inputType === 'message' ? textInput : undefined,
+          password,
+          isTextMode: inputType === 'message'
         })
+      })
 
+      if (inputType === 'file') {
         if (mode === 'encrypt') {
           setEncryptedData(result.data)
         } else {
@@ -247,60 +238,22 @@ export default function PasswordPage() {
             setFileInfo(prev => prev ? { ...prev, originalExtension: result.originalExtension } : null)
           }
         }
-        toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
-      } else if (inputType === 'message') {
-        // Process text input
-        let file: File
+        toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Click download to save.`)
+      } else {
         if (mode === 'encrypt') {
-          file = new File([textInput], `text_${generateTimestamp()}.txt`, { type: 'text/plain' })
-        } else {
-          try {
-            const decodedText = Buffer.from(textInput.trim(), 'base64')
-            file = new File([decodedText], `encrypted_${generateTimestamp()}.enc`, { type: 'application/octet-stream' })
-          } catch (error) {
-            console.error('Invalid Base64 input for decryption:', error)
-            throw new Error('Invalid Base64 input for decryption')
-          }
-        }
-
-        const result = await new Promise<{ data: Blob; filename: string; originalExtension?: string }>((resolve, reject) => {
-          worker.onmessage = (e: MessageEvent) => {
-            const { data, error, progress, stage } = e.data
-            if (error) {
-              reject(new Error(error))
-            } else if (progress !== undefined) {
-              setProcessingProgress(progress)
-              if (stage) {
-                setProcessingStage(stage)
-              }
-            } else if (data) {
-              resolve(data)
-            }
-          }
-          worker.postMessage({
-            mode,
-            encryptionMode: 'pwd',
-            file,
-            filename: file.name,
-            password,
-            isTextMode: true
-          })
-        })
-
-        if (mode === 'encrypt') {
-          const arrayBuffer = await result.data.arrayBuffer()
-          const encrypted = Buffer.from(arrayBuffer).toString('base64')
-          setEncryptedText(encrypted)
+          setEncryptedText(result.base64 || '')
           setEncryptedData(result.data)
           setIsDialogOpen(true)
+          toast.success('Text encrypted successfully!')
         } else {
-          const arrayBuffer = await result.data.arrayBuffer()
-          const decrypted = new TextDecoder().decode(arrayBuffer)
-          setDecryptedText(decrypted)
+          setDecryptedText(result.base64 || '')
           setDecryptedData(result.data)
           setIsDialogOpen(true)
+          if (result.signatureValid !== undefined) {
+            toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
+          }
+          toast.success('Text decrypted successfully!')
         }
-        toast.success(`Text ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
       }
 
       setTimeout(() => {
@@ -319,7 +272,6 @@ export default function PasswordPage() {
       <Card className="border-none bg-card/20 backdrop-blur-lg">
         <CardContent className="px-4 space-y-6 sm:space-y-8">
           <ModeSwitcher value={pathname === '/password' ? 'pwd' : 'puk'} />
-          {/* Hidden file input */}
           <input
             type="file"
             ref={fileInputRef}
