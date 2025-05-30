@@ -359,11 +359,7 @@ function createStreamHeader(
 }
 
 // Parse streaming header
-export function parseStreamHeader(data: Uint8Array, key?: Uint8Array, receiver?: Uint8Array): {
-  header: HeaderData
-  headerLength: number
-  signature?: Uint8Array
-} {
+export function parseStreamHeader(data: Uint8Array, password?: string, receiver?: Uint8Array) {
   try {
     const magicBytes = bytesToUtf8(data.slice(0, 3))
     if (!Object.values(MAGIC_BYTES).includes(magicBytes as MagicBytesType)) {
@@ -381,7 +377,9 @@ export function parseStreamHeader(data: Uint8Array, key?: Uint8Array, receiver?:
     const encryptedHeaderBytes = data.slice(headerOffset, headerOffset + headerLength)
 
     let headerBytes: Uint8Array
-    if (isPasswordMode && key && salt) {
+    let key;
+    if (isPasswordMode && password && salt) {
+      key = argon2id(password, salt, CONFIG.ARGON2)
       const aes = managedNonce(gcm)(key)
       headerBytes = aes.decrypt(encryptedHeaderBytes)
     } else if (!isPasswordMode && receiver) {
@@ -393,7 +391,7 @@ export function parseStreamHeader(data: Uint8Array, key?: Uint8Array, receiver?:
     const headerJson = bytesToUtf8(headerBytes)
     const header = JSON.parse(headerJson) as HeaderData
 
-    return { header, headerLength: headerLength + 5, signature: header.s }
+    return { header, headerLength: headerLength + 5, signature: header.s, key }
   } catch (error) {
     throw new DecryptionError(`Failed to parse header: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
@@ -472,12 +470,9 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
     throw new InvalidDataError(ERROR_MESSAGES.NOT_PASSWORD_ENCRYPTED)
   }
 
-  const salt = new Uint8Array(headerData).slice(5, 21)
-  const { header } = parseStreamHeader(new Uint8Array(headerData), undefined, undefined)
+  const { header, key } = parseStreamHeader(new Uint8Array(headerData), password, undefined)
 
   onStage?.('Deriving decryption key...')
-
-  const key = argon2id(password, salt, CONFIG.ARGON2)
 
   try {
     const cipher = new StreamCipher(key)
