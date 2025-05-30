@@ -119,18 +119,19 @@ const readFileAsArrayBuffer = (file: File | Blob): Promise<ArrayBuffer> => {
 }
 
 // Identify encryption mode from file
-export const identifyEncryptionMode = async (file: File): Promise<string | null> => {
+export const identifyEncryptionMode = async (file: File): Promise<'pubk' | 'pwd' | 'unknown'> => {
   try {
-    const buffer = await readFileAsArrayBuffer(file.slice(0, 4))
+    const buffer = await readFileAsArrayBuffer(file.slice(0, 3))
     const data = new Uint8Array(buffer)
-    const srv = bytesToUtf8(data.slice(0, 2))
-    if (srv !== 'ns') {
-      return null
+    const magicBytes = bytesToUtf8(data)
+    if (magicBytes === 'ns0' || magicBytes === 'ns2') {
+      return 'pubk'
+    } else if (magicBytes === 'ns1') {
+      return 'pwd'
     }
-    const mode = data.slice(2, 3)[0]
-    return mode === 0 ? 'public-key' : null
+    return 'unknown'
   } catch (error) {
     console.error('Error identifying encryption mode:', error)
-    return null
+    return 'unknown'
   }
 }
