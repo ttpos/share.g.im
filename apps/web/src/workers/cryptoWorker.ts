@@ -1,5 +1,5 @@
 import { base58 } from '@scure/base'
-import { streamCrypto, textCrypto, parseStreamHeader } from '@ttpos/share-utils'
+import { streamCrypto, textCrypto, parseStreamHeader, detect } from '@ttpos/share-utils'
 
 // Interface for worker input
 interface WorkerInput {
@@ -34,15 +34,33 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
   try {
     self.postMessage({ progress: 0, stage: 'Starting...' })
 
-    // Validate inputs based on encryption mode
+    // Detect input type and encryption mode
+    self.postMessage({ progress: 5, stage: 'Detecting input type...' })
+
+    let detection: Awaited<ReturnType<typeof detect>>
+    if (isTextMode && text) {
+      detection = await detect(text)
+    } else if (file) {
+      detection = await detect(file)
+    } else {
+      throw new Error('No valid input provided')
+    }
+
+    // Validate inputs based on encryption mode and detection
     if (encryptionMode === 'pubk') {
       if (mode === 'encrypt' && !publicKey) throw new Error('Public key not provided')
       if (mode === 'decrypt' && !privateKey) throw new Error('Private key not provided')
       if (mode === 'decrypt' && (!/^[0-9a-fA-F]+$/.test(privateKey!) || privateKey!.length !== 64)) {
         throw new Error('Invalid private key format')
       }
+      if (mode === 'decrypt' && detection.encryptionType === 'pwd') {
+        throw new Error('Input is password-encrypted, but public key mode selected')
+      }
     } else if (encryptionMode === 'pwd') {
       if (!password) throw new Error('Password not provided')
+      if (mode === 'decrypt' && (detection.encryptionType === 'pubk' || detection.encryptionType === 'signed')) {
+        throw new Error('Input is public key-encrypted, but password mode selected')
+      }
     } else {
       throw new Error('Invalid encryption mode')
     }
