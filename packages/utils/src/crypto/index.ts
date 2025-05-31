@@ -412,61 +412,38 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
 
 // Detect encryption type and file metadata
 export async function detect(fileOrBase64: File | string): Promise<{
-  encryptionType: 'pwd' | 'pubk' | 'signed' | 'unencrypted';
-  extension?: string;
-  chunkCount?: number;
-  isText: boolean;
+  encryptionType: 'pwd' | 'pubk' | 'signed' | 'unencrypted'
+  extension?: string
+  chunkCount?: number
+  isText: boolean
 }> {
   try {
-    let data: Uint8Array
-    let isText = false
+    const ENCRYPTION_TYPE_MAP: Record<string, 'pwd' | 'pubk' | 'signed'> = {
+      [MAGIC_BYTES.PASSWORD]: 'pwd',
+      [MAGIC_BYTES.PUBLIC_KEY]: 'pubk',
+      [MAGIC_BYTES.SIGNED]: 'signed',
+    }
 
-    // Check if input is base64 string or File
-    if (typeof fileOrBase64 === 'string') {
-      // Check for magic byte prefix in base64 string
-      const prefix = fileOrBase64.slice(0, 3)
-      let base64Data = fileOrBase64
-      if (prefix === MAGIC_BYTES.PASSWORD || prefix === MAGIC_BYTES.PUBLIC_KEY || prefix === MAGIC_BYTES.SIGNED) {
-        base64Data = fileOrBase64.slice(3)
-      }
-      data = base64.decode(base64Data)
-      isText = true
+    const isText = typeof fileOrBase64 === 'string'
+    let magic: string
+
+    if (isText) {
+      magic = fileOrBase64.slice(0, 4)
+      magic = magic.endsWith(':') ? magic.slice(0, 3) : magic
     } else {
-      const headerData = await readFileChunk(fileOrBase64, 0, CONFIG.SIZES.HEADER_MAX)
-      data = new Uint8Array(headerData)
-      isText = false
+      const headerData = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as ArrayBuffer)
+        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.readAsArrayBuffer(fileOrBase64.slice(0, 3))
+      })
+      magic = bytesToUtf8(new Uint8Array(headerData))
     }
 
-    const magicBytes = bytesToUtf8(data.slice(0, 3))
-    if (!Object.values(MAGIC_BYTES).includes(magicBytes as MagicBytesType)) {
-      return {
-        encryptionType: 'unencrypted',
-        isText
-      }
-    }
-
-    const headerLengthBytes = data.slice(3, 5)
-    const headerLength = new DataView(headerLengthBytes.buffer, headerLengthBytes.byteOffset).getUint16(0, true)
-
-    // We can't decrypt header without keys, but we can still detect type and partial metadata
-    let encryptionType: 'pwd' | 'pubk' | 'signed'
-    if (magicBytes === MAGIC_BYTES.PASSWORD) {
-      encryptionType = 'pwd'
-    } else if (magicBytes === MAGIC_BYTES.PUBLIC_KEY) {
-      encryptionType = 'pubk'
-    } else {
-      encryptionType = 'signed'
-    }
-
-    return {
-      encryptionType,
-      isText
-    }
-  } catch (error) {
-    return {
-      encryptionType: 'unencrypted',
-      isText: typeof fileOrBase64 === 'string'
-    }
+    const encryptionType = ENCRYPTION_TYPE_MAP[magic] || 'unencrypted'
+    return { encryptionType, isText }
+  } catch {
+    return { encryptionType: 'unencrypted', isText: typeof fileOrBase64 === 'string' }
   }
 }
 
