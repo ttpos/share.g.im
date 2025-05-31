@@ -410,6 +410,66 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
   }
 }
 
+// Detect encryption type and file metadata
+export async function detect(fileOrBase64: File | string): Promise<{
+  encryptionType: 'pwd' | 'pubk' | 'signed' | 'unencrypted';
+  extension?: string;
+  chunkCount?: number;
+  isText: boolean;
+}> {
+  try {
+    let data: Uint8Array
+    let isText = false
+
+    // Check if input is base64 string or File
+    if (typeof fileOrBase64 === 'string') {
+      // Check for magic byte prefix in base64 string
+      const prefix = fileOrBase64.slice(0, 3)
+      let base64Data = fileOrBase64
+      if (prefix === MAGIC_BYTES.PASSWORD || prefix === MAGIC_BYTES.PUBLIC_KEY || prefix === MAGIC_BYTES.SIGNED) {
+        base64Data = fileOrBase64.slice(3)
+      }
+      data = base64.decode(base64Data)
+      isText = true
+    } else {
+      const headerData = await readFileChunk(fileOrBase64, 0, CONFIG.SIZES.HEADER_MAX)
+      data = new Uint8Array(headerData)
+      isText = false
+    }
+
+    const magicBytes = bytesToUtf8(data.slice(0, 3))
+    if (!Object.values(MAGIC_BYTES).includes(magicBytes as MagicBytesType)) {
+      return {
+        encryptionType: 'unencrypted',
+        isText
+      }
+    }
+
+    const headerLengthBytes = data.slice(3, 5)
+    const headerLength = new DataView(headerLengthBytes.buffer, headerLengthBytes.byteOffset).getUint16(0, true)
+
+    // We can't decrypt header without keys, but we can still detect type and partial metadata
+    let encryptionType: 'pwd' | 'pubk' | 'signed'
+    if (magicBytes === MAGIC_BYTES.PASSWORD) {
+      encryptionType = 'pwd'
+    } else if (magicBytes === MAGIC_BYTES.PUBLIC_KEY) {
+      encryptionType = 'pubk'
+    } else {
+      encryptionType = 'signed'
+    }
+
+    return {
+      encryptionType,
+      isText
+    }
+  } catch (error) {
+    return {
+      encryptionType: 'unencrypted',
+      isText: typeof fileOrBase64 === 'string'
+    }
+  }
+}
+
 // Stream encrypt with password
 export async function streamEncryptWithPassword(options: StreamEncryptOptions): Promise<Blob> {
   const { file, password, onProgress, onStage } = options
@@ -489,7 +549,6 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
   }
 
   const { header, key, headerLength } = parseStreamHeader(new Uint8Array(headerData), password, undefined)
-  console.log(header, key)
   onStage?.('Deriving decryption key...')
 
   try {
@@ -669,19 +728,23 @@ export async function encryptText(
 ) {
   const file = new File([text], 'source.txt', { type: 'text/plain' })
   let blob: Blob
+  let prefix: string
   if (password) {
     blob = await streamCrypto.encrypt.withPassword({ file, password, receiver, sender })
+    prefix = MAGIC_BYTES.PASSWORD
   } else if (receiver) {
     blob = await streamCrypto.encrypt.withPublicKey({ file, receiver, sender })
+    prefix = sender ? MAGIC_BYTES.SIGNED : MAGIC_BYTES.PUBLIC_KEY
   } else {
     throw new Error('Either password or receiver is required')
   }
 
-  // Convert blob to base64
+  // Convert blob to base64 and add prefix
   const arrayBuffer = await blob.arrayBuffer()
+  const base64String = base64.encode(new Uint8Array(arrayBuffer))
   return {
     blob,
-    base64: base64.encode(new Uint8Array(arrayBuffer))
+    base64: `${prefix}${base64String}`
   }
 }
 
@@ -691,8 +754,14 @@ export async function decryptText(
   receiver?: Uint8Array,
   sender?: Uint8Array
 ) {
-  const encryptedData = base64.decode(encryptedText)
+  // Remove potential prefix from base64 string
+  const prefix = encryptedText.slice(0, 3)
+  let base64Data = encryptedText
+  if (prefix === MAGIC_BYTES.PASSWORD || prefix === MAGIC_BYTES.PUBLIC_KEY || prefix === MAGIC_BYTES.SIGNED) {
+    base64Data = encryptedText.slice(3)
+  }
 
+  const encryptedData = base64.decode(base64Data)
   const file = new File([encryptedData], 'encrypted.txt', { type: 'text/plain' })
   let result: { file: Blob; signatureValid?: boolean }
   if (password) {
