@@ -18,6 +18,8 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "build:web": "turbo run build --filter=./apps/web",
+    "build:web-spa": "turbo run build --filter=./apps/web-spa",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
