@@ -198,6 +198,9 @@ importers:
       '@scure/bip39':
         specifier: ^1.6.0
         version: 1.6.0
+      '@ttpos/share-utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -6811,7 +6814,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 20.17.55
+      '@types/node': 22.15.27
       merge-stream: 2.0.0
       supports-color: 8.1.1
 

@@ -1,5 +1,3 @@
-'use client'
-
 import GradientText from '@/components/reactbits/GradientText'
 import ShinyText from '@/components/reactbits/ShinyText'
 import { ThemeToggle } from '@/components/ThemeToggle'

@@ -1,27 +1,26 @@
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom'
+
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface ModeSwitcherProps {
   value: string;
+  // eslint-disable-next-line no-unused-vars
   onValueChange?: (value: string) => void;
 }
 
-// Component to switch between encryption modes
-const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, onValueChange }) => {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
+export default function ModeSwitcher({ value, onValueChange }: ModeSwitcherProps) {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
 
-  // Handle mode change and navigate to corresponding route
   const handleModeChange = (value: string) => {
     if (value === 'puk' && pathname !== '/') {
-      navigate('/');
+      navigate('/')
     } else if (value === 'pwd' && pathname !== '/password') {
-      navigate('/password');
+      navigate('/password')
     }
-    onValueChange?.(value);
-  };
+    onValueChange?.(value)
+  }
 
   return (
     <div className="space-y-2">
@@ -36,7 +35,5 @@ const ModeSwitcher: React.FC<ModeSwitcherProps> = ({ value, onValueChange }) => 
         </SelectContent>
       </Select>
     </div>
-  );
-};
-
-export default ModeSwitcher;
+  )
+}

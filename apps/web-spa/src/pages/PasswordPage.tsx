@@ -1,7 +1,7 @@
-import { Upload, Lock, Unlock, Download, FileText, Clipboard, RefreshCw } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+import { Upload, Lock, Unlock, Download, Clipboard, RefreshCw, X } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 
 import FeaturesSection from '@/components/FeaturesSection'
 import { FileInfoDisplay } from '@/components/FileInfoDisplay'
@@ -10,288 +10,272 @@ import ProgressIndicator from '@/components/ProgressIndicator'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { generateTimestamp, getFilenameWithoutExtension, identifyEncryptionMode } from '@/lib/utils'
 import type { FileInfo } from '@/types'
-import CryptoWorker from '../workers/pwdCryptoWorker.ts?worker&inline'
+import CryptoWorker from '@/workers/cryptoWorker.ts?worker&inline'
 
-// Password page component for file and message encryption/decryption with password
-const PasswordPage: React.FC = () => {
-  const { pathname } = useLocation();
-
-  const [password, setPassword] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
-  const [textInput, setTextInput] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [inputMode, setInputMode] = useState<'file' | 'message'>('file');
-  const [encryptedText, setEncryptedText] = useState('');
-  const [encryptedData, setEncryptedData] = useState<ArrayBuffer | null>(null);
-  const [decryptedText, setDecryptedText] = useState('');
-  const [decryptedData, setDecryptedData] = useState<ArrayBuffer | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [processingProgress, setProcessingProgress] = useState(0);
-  const [processingStage, setProcessingStage] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const workerRef = useRef<Worker | null>(null);
+// Password page component for file and message encryption/decryption
+export default function PasswordPage() {
+  const { pathname } = useLocation()
+  // State for user inputs and processing
+  const [password, setPassword] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
+  const [textInput, setTextInput] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [inputType, setInputType] = useState<'file' | 'message'>('message')
+  const [encryptedText, setEncryptedText] = useState('')
+  const [encryptedData, setEncryptedData] = useState<Blob | null>(null)
+  const [decryptedText, setDecryptedText] = useState('')
+  const [decryptedData, setDecryptedData] = useState<Blob | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [processingProgress, setProcessingProgress] = useState(0)
+  const [processingStage, setProcessingStage] = useState('')
+  const workerRef = useRef<Worker | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // workerRef.current = new Worker(new URL('../workers/pwdCryptoWorker.ts', import.meta.url));
-    workerRef.current = new CryptoWorker();
-    return () => workerRef.current?.terminate();
-  }, []);
+    // workerRef.current = new Worker(new URL('../../workers/cryptoWorker.ts', import.meta.url))
+    workerRef.current = new CryptoWorker()
+    return () => workerRef.current?.terminate()
+  }, [])
 
-  // Handle file selection
-  const handleFileSelect = useCallback(async (file: File | null) => {
-    setSelectedFile(file);
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    setSelectedFile(file)
+    setTextInput('')
+    setInputType('file')
     if (file) {
-      const encryptionMode = await identifyEncryptionMode(file) as FileInfo['encryptionMode'];
+      const encryptionMode = await identifyEncryptionMode(file) as FileInfo['encryptionMode']
       setFileInfo({
         name: file.name,
         size: file.size,
         type: file.type || 'Unknown',
-        encryptionMode,
-      });
+        encryptionMode: encryptionMode
+      })
     } else {
-      setFileInfo(null);
+      setFileInfo(null)
     }
-  }, []);
+  }, [])
+
+  const handleFileDrop = useCallback(async (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const file = e.dataTransfer.files[0]
+    if (file) {
+      setSelectedFile(file)
+      setTextInput('')
+      setInputType('file')
+      const encryptionMode = await identifyEncryptionMode(file) as FileInfo['encryptionMode']
+      setFileInfo({
+        name: file.name,
+        size: file.size,
+        type: file.type || 'Unknown',
+        encryptionMode: encryptionMode
+      })
+    }
+  }, [])
+
+  const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setTextInput(e.target.value)
+    setInputType('message')
+  }
+
+  const handleClearFile = () => {
+    setSelectedFile(null)
+    setFileInfo(null)
+    setTextInput('')
+    setInputType('message')
+    toast.success('File cleared. You can now input text or select a new file.')
+  }
 
   const handleDownloadEncrypted = useCallback(() => {
     if (encryptedData) {
-      const timestamp = generateTimestamp();
-      downloadFile(encryptedData, `encrypted_text_${timestamp}.enc`);
-      toast.success('File downloaded');
+      const timestamp = generateTimestamp()
+      downloadFile(encryptedData, `encrypted_${inputType === 'message' ? 'text' : getFilenameWithoutExtension(fileInfo?.name || 'file')}_${timestamp}.enc`)
+      toast.success('Encrypted file downloaded')
     }
-  }, [encryptedData]);
+  }, [encryptedData, fileInfo, inputType])
 
   const handleDownloadDecrypted = useCallback(() => {
     if (decryptedData) {
-      const timestamp = generateTimestamp();
-      downloadFile(decryptedData, `${timestamp}.txt`);
-      toast.success('File downloaded');
+      const timestamp = generateTimestamp()
+      const extension = fileInfo?.originalExtension || 'txt'
+      downloadFile(decryptedData, `decrypted_${timestamp}.${extension}`)
+      toast.success('Decrypted file downloaded')
     }
-  }, [decryptedData]);
+  }, [decryptedData, fileInfo])
 
   const handleDownload = useCallback(() => {
     if (encryptedData && fileInfo) {
-      const timestamp = generateTimestamp();
-      const nameWithoutExt = getFilenameWithoutExtension(fileInfo.name);
-      downloadFile(encryptedData, `${nameWithoutExt}_${timestamp}.enc`);
-      toast.success('Encrypted file downloaded successfully');
+      const timestamp = generateTimestamp()
+      const nameWithoutExt = getFilenameWithoutExtension(fileInfo.name)
+      downloadFile(encryptedData, `${nameWithoutExt}_${timestamp}.enc`)
+      toast.success('Encrypted file downloaded successfully')
     } else if (decryptedData && fileInfo) {
-      const timestamp = generateTimestamp();
-      const extension = fileInfo.originalExtension || 'bin';
-      downloadFile(decryptedData, `${timestamp}.${extension}`);
-      toast.success('Decrypted file downloaded successfully');
+      const timestamp = generateTimestamp()
+      const extension = fileInfo.originalExtension || 'txt'
+      downloadFile(decryptedData, `decrypted_${timestamp}.${extension}`)
+      toast.success('Decrypted file downloaded successfully')
+    } else if (encryptedData && inputType === 'message') {
+      handleDownloadEncrypted()
+    } else if (decryptedData && inputType === 'message') {
+      handleDownloadDecrypted()
     }
-  }, [encryptedData, decryptedData, fileInfo]);
+  }, [encryptedData, decryptedData, fileInfo, inputType, handleDownloadEncrypted, handleDownloadDecrypted])
 
-  const readFileChunk = (file: File, offset: number, chunkSize: number): Promise<ArrayBuffer> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      const blob = file.slice(offset, offset + chunkSize);
-      reader.onload = () => resolve(reader.result as ArrayBuffer);
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsArrayBuffer(blob);
-    });
-  };
-
-  const downloadFile = (data: ArrayBuffer, filename: string) => {
-    const blob = new Blob([data]);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+  const downloadFile = (data: Blob, filename: string) => {
+    const url = URL.createObjectURL(data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
   const handleCopyText = async (message: string) => {
     try {
-      await navigator.clipboard.writeText(message);
-      toast.success('Text copied to clipboard!');
+      await navigator.clipboard.writeText(message)
+      toast.success('Text copied to clipboard!')
     } catch (error) {
-      console.error('Failed to copy message:', error);
-      toast.error('Failed to copy message');
+      console.error('Failed to copy message:', error)
+      toast.error('Failed to copy message')
     }
-  };
+  }
 
   const clearState = () => {
-    setPassword('');
-    setSelectedFile(null);
-    setFileInfo(null);
-    setTextInput('');
-    setEncryptedText('');
-    setEncryptedData(null);
-    setDecryptedText('');
-    setDecryptedData(null);
-    setIsDialogOpen(false);
-    setIsProcessing(false);
-    setProcessingProgress(0);
-    setProcessingStage('');
-  };
+    setPassword('')
+    setSelectedFile(null)
+    setFileInfo(null)
+    setTextInput('')
+    setEncryptedText('')
+    setEncryptedData(null)
+    setDecryptedText('')
+    setDecryptedData(null)
+    setIsDialogOpen(false)
+    setIsProcessing(false)
+    setProcessingProgress(0)
+    setProcessingStage('')
+    setInputType('message')
+  }
 
   const processInput = async (mode: 'encrypt' | 'decrypt') => {
-    if (inputMode === 'file' && !selectedFile) {
-      toast.error('Please select a file first');
-      return;
+    if (inputType === 'file' && !selectedFile) {
+      toast.error('Please select a file by clicking "Select File" or dragging it')
+      return
     }
-    if (inputMode === 'message' && !textInput.trim()) {
-      toast.error('Please input the message for processing');
-      return;
+    if (inputType === 'message' && !textInput.trim()) {
+      toast.error('Please input a message for processing')
+      return
     }
     if (!password) {
-      toast.error('Please enter a password');
-      return;
+      toast.error('Please enter a password')
+      return
     }
 
-    setIsProcessing(true);
-    setProcessingProgress(0);
-    setProcessingStage('Initializing...');
+    setIsProcessing(true)
+    setProcessingProgress(0)
+    setProcessingStage('Initializing...')
 
     try {
-      const worker = workerRef.current;
-      if (!worker) throw new Error('Web Worker not initialized');
+      const worker = workerRef.current
+      if (!worker) throw new Error('Web Worker not initialized')
 
-      if (inputMode === 'file' && selectedFile) {
-        const CHUNK_SIZE = 5 * 1024 * 1024;
-        const chunks: ArrayBuffer[] = [];
-        const fileSize = selectedFile.size;
-        let offset = 0;
-        while (offset < fileSize) {
-          const chunk = await readFileChunk(selectedFile, offset, CHUNK_SIZE);
-          chunks.push(chunk);
-          offset += CHUNK_SIZE;
-        }
-        if (fileSize > 50 * 1024 * 1024) {
-          toast.warning('Large file detected. Processing may be slow on client-side.');
-        }
-
-        const result = await new Promise<{
-          data: ArrayBuffer;
-          filename: string;
-          originalExtension?: string;
-        }>((resolve, reject) => {
-          worker.onmessage = (e: MessageEvent) => {
-            const { data, error, progress, stage } = e.data;
-            if (error) {
-              reject(new Error(error));
-            } else if (progress !== undefined) {
-              setProcessingProgress(progress);
-              if (stage) {
-                setProcessingStage(stage);
-              }
-            } else if (data) {
-              resolve(data);
+      const result = await new Promise<{
+        data: Blob
+        base64?: string
+        filename: string
+        originalExtension?: string
+        signatureValid?: boolean
+      }>((resolve, reject) => {
+        worker.onmessage = (e: MessageEvent) => {
+          const { data, error, progress, stage } = e.data
+          if (error) {
+            reject(new Error(error))
+          } else if (progress !== undefined) {
+            setProcessingProgress(progress)
+            if (stage) {
+              setProcessingStage(stage)
             }
-          };
-          worker.postMessage({
-            mode,
-            chunks,
-            filename: selectedFile.name,
-            password,
-            encryptionMode: 'password',
-            isTextMode: false,
-          });
-        });
+          } else if (data) {
+            resolve(data)
+          }
+        }
+        worker.postMessage({
+          mode,
+          encryptionMode: 'pwd',
+          file: inputType === 'file' ? selectedFile : undefined,
+          filename: inputType === 'file' ? selectedFile?.name : undefined,
+          text: inputType === 'message' ? textInput : undefined,
+          password,
+          isTextMode: inputType === 'message'
+        })
+      })
 
+      if (inputType === 'file') {
         if (mode === 'encrypt') {
-          setEncryptedData(result.data);
+          setEncryptedData(result.data)
         } else {
-          setDecryptedData(result.data);
+          setDecryptedData(result.data)
           if (result.originalExtension) {
-            setFileInfo((prev) => (prev ? { ...prev, originalExtension: result.originalExtension } : null));
+            setFileInfo(prev => prev ? { ...prev, originalExtension: result.originalExtension } : null)
           }
         }
-        toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`);
-      } else if (inputMode === 'message') {
-        let chunks: ArrayBuffer[] = [];
+        toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Click download to save.`)
+      } else {
         if (mode === 'encrypt') {
-          const textBuffer = new TextEncoder().encode(textInput);
-          chunks = [textBuffer];
+          setEncryptedText(result.base64 || '')
+          setEncryptedData(result.data)
+          setIsDialogOpen(true)
+          toast.success('Text encrypted successfully!')
         } else {
-          try {
-            const decodedText = Buffer.from(textInput.trim(), 'base64');
-            chunks = [decodedText.buffer];
-          } catch (error) {
-            console.error('Invalid Base64 input for decryption:', error);
-            throw new Error('Invalid Base64 input for decryption');
+          setDecryptedText(result.base64 || '')
+          setDecryptedData(result.data)
+          setIsDialogOpen(true)
+          if (result.signatureValid !== undefined) {
+            toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
           }
+          toast.success('Text decrypted successfully!')
         }
-
-        const result = await new Promise<{
-          data: ArrayBuffer;
-          filename: string;
-          originalExtension?: string;
-        }>((resolve, reject) => {
-          worker.onmessage = (e: MessageEvent) => {
-            const { data, error, progress, stage } = e.data;
-            if (error) {
-              reject(new Error(error));
-            } else if (progress !== undefined) {
-              setProcessingProgress(progress);
-              if (stage) {
-                setProcessingStage(stage);
-              }
-            } else if (data) {
-              resolve(data);
-            }
-          };
-          const timestamp = generateTimestamp();
-          const filename = mode === 'encrypt' ? `encrypted_text_${timestamp}.enc` : `${timestamp}.txt`;
-          worker.postMessage({
-            mode,
-            chunks,
-            filename,
-            password,
-            encryptionMode: 'password',
-            isTextMode: true,
-          });
-        });
-
-        if (mode === 'encrypt') {
-          const encrypted = Buffer.from(result.data).toString('base64');
-          setEncryptedText(encrypted);
-          setEncryptedData(result.data);
-          setIsDialogOpen(true);
-        } else {
-          const decrypted = new TextDecoder().decode(result.data);
-          setDecryptedText(decrypted);
-          setDecryptedData(result.data);
-          setIsDialogOpen(true);
-        }
-        toast.success(`Text ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`);
       }
 
       setTimeout(() => {
-        setProcessingProgress(0);
-        setProcessingStage('');
-      }, 1000);
+        setProcessingProgress(0)
+        setProcessingStage('')
+      }, 1000)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'An error occurred during processing');
+      toast.error(error instanceof Error ? error.message : 'An error occurred during processing')
     } finally {
-      setIsProcessing(false);
+      setIsProcessing(false)
     }
-  };
+  }
 
   return (
     <>
       <Card className="border-none bg-card/20 backdrop-blur-lg">
         <CardContent className="px-4 space-y-6 sm:space-y-8">
           <ModeSwitcher value={pathname === '/password' ? 'pwd' : 'puk'} />
-          <Input
+          <input
             type="file"
             ref={fileInputRef}
             className="hidden"
-            onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+            onChange={handleFileSelect}
           />
           <Tabs defaultValue="encrypt" className="w-full" onValueChange={clearState}>
             <TabsList className="grid w-full grid-cols-2">
@@ -309,69 +293,75 @@ const PasswordPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                    Input Mode
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={inputMode === 'file' ? 'default' : 'outline'}
-                      onClick={() => {
-                        setInputMode('file');
-                        setTimeout(() => fileInputRef.current?.click(), 100);
-                      }}
-                      className="flex-1 flex items-center justify-center"
-                    >
-                      <Upload className="w-4 h-4" />
-                      File
-                    </Button>
-                    <Button
-                      variant={inputMode === 'message' ? 'default' : 'outline'}
-                      onClick={() => setInputMode('message')}
-                      className="flex-1 flex items-center justify-center"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Messages
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                     Password
                   </Label>
                   <PasswordInput
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="font-mono text-sm h-[40px] flex-1"
+                    className="font-mono text-sm h-[40px] flex-1 rounded-lg border-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400"
                   />
                 </div>
 
-                {inputMode === 'file' && fileInfo && (
-                  <div className="space-y-3 sm:space-y-4">
-                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Selected File
-                    </Label>
-                    <FileInfoDisplay fileInfo={fileInfo} />
+                <div className="space-y-6">
+                  {inputType === 'message' && (
+                    <div className="space-y-3">
+                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                        Input Message or File
+                      </Label>
+                      <div className="relative group">
+                        <Textarea
+                          value={textInput}
+                          onChange={handleTextChange}
+                          onDragOver={handleDragOver}
+                          onDrop={handleFileDrop}
+                          placeholder="Type a message to encrypt or drag & drop a file..."
+                          className="min-h-[140px] max-h-[300px] font-mono text-sm break-all resize-none rounded-lg border-2 border-dashed transition-all duration-300 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 focus:bg-blue-50/30 dark:focus:bg-blue-900/20 pr-4 pb-14"
+                        />
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={triggerFileInput}
+                            className="w-full flex items-center justify-center gap-2 h-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Select File to Encrypt</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {inputType === 'file' && fileInfo && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                        Selected File
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearFile}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4" />
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                      <FileInfoDisplay fileInfo={fileInfo} />
+                    </div>
                   </div>
                 )}
-                {inputMode === 'message' && (
-                  <div className="space-y-3 sm:space-y-4">
-                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Message
-                    </Label>
-                    <Textarea
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="Enter the message to be encrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
-                    />
-                  </div>
-                )}
-                <div className="flex gap-2">
+
+                <div className="flex gap-3 pt-2">
                   {!(encryptedData || decryptedData) && (
                     <Button
                       variant="default"
                       size="lg"
-                      disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
+                      disabled={(inputType === 'file' && !selectedFile) || (inputType === 'message' && !textInput.trim()) || !password || isProcessing}
                       onClick={() => processInput('encrypt')}
                       className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-400/30 hover:shadow-blue-500/40"
                     >
@@ -405,34 +395,9 @@ const PasswordPage: React.FC = () => {
                 </div>
               </div>
             </TabsContent>
+
             <TabsContent value="decrypt">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                    Input Mode
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={inputMode === 'file' ? 'default' : 'outline'}
-                      onClick={() => {
-                        setInputMode('file');
-                        setTimeout(() => fileInputRef.current?.click(), 100);
-                      }}
-                      className="flex-1 flex items-center justify-center text-white"
-                    >
-                      <Upload className="w-4 h-4" />
-                      File
-                    </Button>
-                    <Button
-                      variant={inputMode === 'message' ? 'default' : 'outline'}
-                      onClick={() => setInputMode('message')}
-                      className="flex-1 flex items-center justify-center text-white"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Messages
-                    </Button>
-                  </div>
-                </div>
                 <div className="space-y-2">
                   <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
                     Password
@@ -441,36 +406,69 @@ const PasswordPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="font-mono text-sm h-[40px] flex-1"
+                    className="font-mono text-sm h-[40px] flex-1 rounded-lg border-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400"
                   />
                 </div>
-                {inputMode === 'file' && fileInfo && (
-                  <div className="space-y-3 sm:space-y-4">
-                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Selected File
-                    </Label>
-                    <FileInfoDisplay fileInfo={fileInfo} isDecryptMode={true} />
+
+                <div className="space-y-6">
+                  {inputType === 'message' && (
+                    <div className="space-y-3">
+                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                        Input Message or File
+                      </Label>
+                      <div className="relative group">
+                        <Textarea
+                          value={textInput}
+                          onChange={handleTextChange}
+                          onDragOver={handleDragOver}
+                          onDrop={handleFileDrop}
+                          placeholder="Paste encrypted text here or drag & drop an encrypted file..."
+                          className="min-h-[140px] max-h-[300px] font-mono text-sm break-all resize-none rounded-lg border-2 border-dashed transition-all duration-300 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 focus:bg-blue-50/30 dark:focus:bg-blue-900/20 pr-4 pb-14"
+                        />
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={triggerFileInput}
+                            className="w-full flex items-center justify-center gap-2 h-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Select Encrypted File</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {inputType === 'file' && fileInfo && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
+                        Selected File
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearFile}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4" />
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                      <FileInfoDisplay fileInfo={fileInfo} isDecryptMode={true} />
+                    </div>
                   </div>
                 )}
-                {inputMode === 'message' && (
-                  <div className="space-y-3 sm:space-y-4">
-                    <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                      Message
-                    </Label>
-                    <Textarea
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="Enter the message to be decrypted"
-                      className="min-h-[100px] max-h-[300px] font-mono text-sm break-all"
-                    />
-                  </div>
-                )}
-                <div className="flex gap-2">
+
+                <div className="flex gap-3 pt-2">
                   {!(encryptedData || decryptedData) && (
                     <Button
                       variant="default"
                       size="lg"
-                      disabled={(inputMode === 'file' && !selectedFile) || (inputMode === 'message' && !textInput.trim()) || !password || isProcessing}
+                      disabled={(inputType === 'file' && !selectedFile) || (inputType === 'message' && !textInput.trim()) || !password || isProcessing}
                       onClick={() => processInput('decrypt')}
                       className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
                     >
@@ -579,7 +577,5 @@ const PasswordPage: React.FC = () => {
         </DialogContent>
       </Dialog>
     </>
-  );
-};
-
-export default PasswordPage;
+  )
+}
