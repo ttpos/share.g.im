@@ -204,7 +204,15 @@ class StreamCipher {
     try {
       await waitForMemory()
 
+      if (encryptedData.length === 0) {
+        throw new DecryptionError('Encrypted data is empty')
+      }
+
       const metadataLength = encryptedData[0]
+      if (metadataLength === undefined || metadataLength < 0 || metadataLength > encryptedData.length - 1) {
+        throw new DecryptionError('Invalid metadata length')
+      }
+
       const metadataBytes = encryptedData.slice(1, 1 + metadataLength)
       const encryptedChunk = encryptedData.slice(1 + metadataLength)
 
@@ -249,7 +257,7 @@ class StreamCipher {
     if (a.length !== b.length) return false
     let result = 0
     for (let i = 0; i < a.length; i++) {
-      result |= a[i] ^ b[i]
+      result |= (a[i] ?? 0) ^ (b[i] ?? 0)
     }
     return result === 0
   }
@@ -281,6 +289,10 @@ async function readAndExtractChunk(file: File, offset: number): Promise<{ data: 
     const data = new Uint8Array(buffer)
 
     const metadataLength = data[0]
+    if (metadataLength === undefined) {
+      throw new DecryptionError('Invalid metadata length')
+    }
+
     const totalSize = findChunkBoundary(data, metadataLength)
 
     return {
@@ -398,6 +410,43 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
   }
 }
 
+// Detect encryption type and file metadata
+export async function detect(fileOrBase64: File | string): Promise<{
+  encryptionType: 'pwd' | 'pubk' | 'signed' | 'unencrypted'
+  extension?: string
+  chunkCount?: number
+  isText: boolean
+}> {
+  try {
+    const ENCRYPTION_TYPE_MAP: Record<string, 'pwd' | 'pubk' | 'signed'> = {
+      [MAGIC_BYTES.PASSWORD]: 'pwd',
+      [MAGIC_BYTES.PUBLIC_KEY]: 'pubk',
+      [MAGIC_BYTES.SIGNED]: 'signed',
+    }
+
+    const isText = typeof fileOrBase64 === 'string'
+    let magic: string
+
+    if (isText) {
+      magic = fileOrBase64.slice(0, 4)
+      magic = magic.endsWith(':') ? magic.slice(0, 3) : magic
+    } else {
+      const headerData = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as ArrayBuffer)
+        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.readAsArrayBuffer(fileOrBase64.slice(0, 3))
+      })
+      magic = bytesToUtf8(new Uint8Array(headerData))
+    }
+
+    const encryptionType = ENCRYPTION_TYPE_MAP[magic] || 'unencrypted'
+    return { encryptionType, isText }
+  } catch {
+    return { encryptionType: 'unencrypted', isText: typeof fileOrBase64 === 'string' }
+  }
+}
+
 // Stream encrypt with password
 export async function streamEncryptWithPassword(options: StreamEncryptOptions): Promise<Blob> {
   const { file, password, onProgress, onStage } = options
@@ -477,7 +526,6 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
   }
 
   const { header, key, headerLength } = parseStreamHeader(new Uint8Array(headerData), password, undefined)
-  console.log(header, key)
   onStage?.('Deriving decryption key...')
 
   try {
@@ -657,19 +705,23 @@ export async function encryptText(
 ) {
   const file = new File([text], 'source.txt', { type: 'text/plain' })
   let blob: Blob
+  let prefix: string
   if (password) {
     blob = await streamCrypto.encrypt.withPassword({ file, password, receiver, sender })
+    prefix = MAGIC_BYTES.PASSWORD
   } else if (receiver) {
     blob = await streamCrypto.encrypt.withPublicKey({ file, receiver, sender })
+    prefix = sender ? MAGIC_BYTES.SIGNED : MAGIC_BYTES.PUBLIC_KEY
   } else {
     throw new Error('Either password or receiver is required')
   }
 
-  // Convert blob to base64
+  // Convert blob to base64 and add prefix
   const arrayBuffer = await blob.arrayBuffer()
+  const base64String = base64.encode(new Uint8Array(arrayBuffer))
   return {
     blob,
-    base64: base64.encode(new Uint8Array(arrayBuffer))
+    base64: `${prefix}${base64String}`
   }
 }
 
@@ -679,8 +731,14 @@ export async function decryptText(
   receiver?: Uint8Array,
   sender?: Uint8Array
 ) {
-  const encryptedData = base64.decode(encryptedText)
+  // Remove potential prefix from base64 string
+  const prefix = encryptedText.slice(0, 3)
+  let base64Data = encryptedText
+  if (prefix === MAGIC_BYTES.PASSWORD || prefix === MAGIC_BYTES.PUBLIC_KEY || prefix === MAGIC_BYTES.SIGNED) {
+    base64Data = encryptedText.slice(3)
+  }
 
+  const encryptedData = base64.decode(base64Data)
   const file = new File([encryptedData], 'encrypted.txt', { type: 'text/plain' })
   let result: { file: Blob; signatureValid?: boolean }
   if (password) {
