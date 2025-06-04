@@ -89,6 +89,7 @@ web_modules/
 .parcel-cache
 
 # Next.js build output
+.turbo
 .next
 out
 
