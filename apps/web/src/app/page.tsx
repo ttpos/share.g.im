@@ -21,7 +21,6 @@ export default function HomePage() {
   } = useAppState()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-
   const triggerFileInput = () => {
     fileInputRef.current?.click()
   }

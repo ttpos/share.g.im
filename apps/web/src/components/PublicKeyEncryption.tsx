@@ -1,10 +1,11 @@
 'use client'
 
-import { deriveKeyPair, isBase58String, isHexString, isMnemonicPhrase, validateBase58PublicKey, formatFileSize } from '@ttpos/share-utils'
-import { Download, RefreshCw, X, FileText, Info, Copy } from 'lucide-react'
+import { deriveKeyPair, isBase58String, isHexString, isMnemonicPhrase, validateBase58PublicKey } from '@ttpos/share-utils'
+import { Download, RefreshCw, Info, Copy } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 
+import { FileInfoDisplay } from '@/components/FileInfoDisplay'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/ui/password-input'
@@ -217,27 +218,10 @@ export function PublicKeyEncryption() {
       {!encryptedData && (
         <>
           {inputType === 'file' && fileInfo && (
-            <div className="bg-white dark:bg-gray-800 rounded-md border-2 border-dashed border-border p-4 space-y-4">
-              <div className="px-2 py-4 rounded-md flex justify-between items-center bg-stone-100">
-                <div className="flex items-center truncate space-x-3">
-                  <FileText className="w-14 h-14 text-blue-500" />
-                  <div className="flex flex-col truncate space-y-2">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">名称: {fileInfo.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">大小: {formatFileSize(fileInfo.size)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearState}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <FileInfoDisplay
+              fileInfo={fileInfo}
+              onClear={clearState}
+            />
           )}
 
           {inputType === 'message' && (
@@ -284,30 +268,13 @@ export function PublicKeyEncryption() {
         />
       )}
 
-      {inputType === 'file' && encryptedData && (
-        <div className="bg-white dark:bg-gray-800 rounded-md border-2 border-dashed border-border p-4 space-y-4">
-          <div className="px-2 py-4 rounded-md flex justify-between items-center bg-stone-100">
-            <div className="flex items-center truncate space-x-3">
-              <FileText className="w-14 h-14 text-blue-500" />
-              <div className="flex flex-col truncate space-y-2">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">Name: {fileInfo?.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Size: {formatFileSize(fileInfo?.size || 0)}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 pl-4">
-              <span
-                className={cn(
-                  'text-sm whitespace-nowrap',
-                  processMode === 'encrypt'
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-green-600 dark:text-green-400'
-                )}
-              >
-                {processMode === 'encrypt' ? 'Encrypted' : 'Decrypted'}
-              </span>
-            </div>
-          </div>
-        </div>
+      {inputType === 'file' && encryptedData && fileInfo && (
+        <FileInfoDisplay
+          fileInfo={fileInfo}
+          showStatus={true}
+          statusText={processMode === 'encrypt' ? 'Encrypted' : 'Decrypted'}
+          statusType={processMode}
+        />
       )}
 
       <div className="flex gap-3 pt-2">
