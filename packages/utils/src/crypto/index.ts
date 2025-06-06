@@ -428,8 +428,7 @@ export async function detect(fileOrBase64: File | string): Promise<{
     let magic: string
 
     if (isText) {
-      magic = fileOrBase64.slice(0, 4)
-      magic = magic.endsWith(':') ? magic.slice(0, 3) : magic
+      magic = fileOrBase64?.slice(0, 3) || ''
     } else {
       const headerData = await new Promise<ArrayBuffer>((resolve, reject) => {
         const reader = new FileReader()
