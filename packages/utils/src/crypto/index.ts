@@ -169,11 +169,9 @@ function waitForMemory(threshold: number = CONFIG.CHUNK.MAX_MEMORY): Promise<voi
 class StreamCipher {
   private key: Uint8Array
   private chunkIndex: number = 0
-  private cipher: ReturnType<ReturnType<typeof managedNonce<typeof gcm>>>
 
   constructor(key: Uint8Array) {
     this.key = key
-    this.cipher = managedNonce(gcm)(key)
   }
 
   async encryptChunk(chunk: Uint8Array, totalChunks: number): Promise<Uint8Array> {
@@ -188,11 +186,21 @@ class StreamCipher {
       }
 
       const metadataBytes = this.serializeMetadata(metadata)
-      const encryptedChunk = this.cipher.encrypt(chunk)
+
+      // Generate a unique nonce for this chunk using chunk index
+      const nonce = new Uint8Array(CONFIG.SIZES.NONCE)
+      const nonceView = new DataView(nonce.buffer)
+      nonceView.setUint32(0, metadata.index, false) // Use chunk index as part of nonce
+      crypto.getRandomValues(nonce.subarray(4)) // Fill rest with random data
+
+      // Use raw GCM cipher with explicit nonce
+      const cipher = gcm(this.key, nonce)
+      const encryptedChunk = cipher.encrypt(chunk)
 
       return concatBytes(
         new Uint8Array([metadataBytes.length]),
         metadataBytes,
+        nonce,
         encryptedChunk
       )
     } catch (error) {
@@ -214,10 +222,20 @@ class StreamCipher {
       }
 
       const metadataBytes = encryptedData.slice(1, 1 + metadataLength)
-      const encryptedChunk = encryptedData.slice(1 + metadataLength)
-
       const metadata = this.deserializeMetadata(metadataBytes)
-      const chunk = this.cipher.decrypt(encryptedChunk)
+
+      // Extract nonce and encrypted chunk
+      const nonceStart = 1 + metadataLength
+      const nonce = encryptedData.slice(nonceStart, nonceStart + CONFIG.SIZES.NONCE)
+      const encryptedChunk = encryptedData.slice(nonceStart + CONFIG.SIZES.NONCE)
+
+      if (nonce.length !== CONFIG.SIZES.NONCE) {
+        throw new DecryptionError(`Invalid nonce length: expected ${CONFIG.SIZES.NONCE}, got ${nonce.length}`)
+      }
+
+      // Use raw GCM cipher with the extracted nonce
+      const cipher = gcm(this.key, nonce)
+      const chunk = cipher.decrypt(encryptedChunk)
 
       const hash = new Uint8Array(sha256(chunk))
       if (!this.compareArrays(hash, metadata.hash)) {
@@ -285,22 +303,54 @@ function findChunkBoundary(data: Uint8Array, metadataLength: number): number {
 
 async function readAndExtractChunk(file: File, offset: number): Promise<{ data: Uint8Array; totalSize: number }> {
   try {
-    const buffer = await readFileChunk(file, offset, Math.min(offset + CONFIG.CHUNK.SIZE + 1024, file.size))
+    // Read a larger buffer to ensure we get the complete chunk
+    const bufferSize = CONFIG.CHUNK.SIZE + 1024 + 64 // Extra space for metadata, nonce and GCM tag
+    const endOffset = Math.min(offset + bufferSize, file.size)
+    const buffer = await readFileChunk(file, offset, endOffset)
     const data = new Uint8Array(buffer)
 
-    const metadataLength = data[0]
-    if (metadataLength === undefined) {
-      throw new DecryptionError('Invalid metadata length')
+    if (data.length === 0) {
+      throw new DecryptionError('No data to read')
     }
 
-    const totalSize = findChunkBoundary(data, metadataLength)
+    // Read metadata length
+    const metadataLength = data[0]
+    if (metadataLength === undefined || metadataLength < 0 || metadataLength > 255) {
+      throw new DecryptionError(`Invalid metadata length: ${metadataLength}`)
+    }
+
+    // Ensure we have enough data for the metadata
+    if (data.length < 1 + metadataLength) {
+      throw new DecryptionError(`Insufficient data for metadata. Need: ${1 + metadataLength}, Have: ${data.length}`)
+    }
+
+    // Parse metadata to get the original chunk size
+    const metadataBytes = data.slice(1, 1 + metadataLength)
+    const metadata = deserializeMetadataHelper(metadataBytes)
+
+    // Calculate exact chunk size: metadata length byte + metadata + nonce + encrypted data (original size + 16 bytes GCM tag)
+    const exactSize = 1 + metadataLength + CONFIG.SIZES.NONCE + metadata.size + 16
+
+    // Ensure we don't exceed available data
+    const actualSize = Math.min(exactSize, data.length)
 
     return {
-      data: data.slice(0, totalSize),
-      totalSize
+      data: data.slice(0, actualSize),
+      totalSize: exactSize
     }
   } catch (error) {
     throw new InvalidDataError(`Failed to read chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+// Helper function to deserialize metadata (extracted from StreamCipher class)
+function deserializeMetadataHelper(bytes: Uint8Array): ChunkMetadata {
+  const view = new DataView(bytes.buffer, bytes.byteOffset)
+  return {
+    index: view.getUint32(0, true),
+    totalChunks: view.getUint32(4, true),
+    size: view.getUint32(8, true),
+    hash: bytes.slice(12, 44)
   }
 }
 
@@ -428,8 +478,7 @@ export async function detect(fileOrBase64: File | string): Promise<{
     let magic: string
 
     if (isText) {
-      magic = fileOrBase64.slice(0, 4)
-      magic = magic.endsWith(':') ? magic.slice(0, 3) : magic
+      magic = fileOrBase64?.slice(0, 3) || ''
     } else {
       const headerData = await new Promise<ArrayBuffer>((resolve, reject) => {
         const reader = new FileReader()
@@ -539,6 +588,10 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
     onStage?.('Decrypting file...')
 
     for (let i = 0; i < header.c; i++) {
+      if (offset >= file.size) {
+        throw new DecryptionError(`Premature end of file. Expected ${header.c} chunks, got ${i}`)
+      }
+
       const chunkData = await readAndExtractChunk(file, offset)
       const { chunk } = await cipher.decryptChunk(chunkData.data)
       chunks.push(chunk)
@@ -676,6 +729,10 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
     onStage?.('Decrypting file...')
 
     for (let i = 0; i < header.c; i++) {
+      if (offset >= file.size) {
+        throw new DecryptionError(`Premature end of file. Expected ${header.c} chunks, got ${i}`)
+      }
+
       const chunkData = await readAndExtractChunk(file, offset)
       const { chunk } = await cipher.decryptChunk(chunkData.data)
       chunks.push(chunk)
