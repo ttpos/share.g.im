@@ -30,7 +30,6 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
     password,
     isTextMode
   } = e.data
-  console.log('🚀 ~ self.onmessage= ~ e.data:', e.data)
 
   try {
     self.postMessage({ progress: 0, stage: 'Starting...' })

@@ -199,8 +199,6 @@ class StreamCipher {
         size: encryptedChunk.length,
         hash
       }
-      console.log('Original chunk size:', chunk.length, 'Encrypted chunk size:', encryptedChunk.length)
-      console.log('Metadata:', metadata)
       const metadataBytes = serializeMetadata(metadata)
       return concatBytes(metadataBytes, encryptedChunk)
     } catch (error) {
@@ -220,9 +218,6 @@ class StreamCipher {
         throw new DecryptionError(`Encrypted data size mismatch: expected ${metadata.size}, got ${encryptedData.length}`)
       }
 
-      console.log('Decrypting chunk with metadata:', metadata)
-      console.log('Encrypted data length:', encryptedData.length)
-      
       const cipher = managedNonce(gcm)(this.key)
       const chunk = cipher.decrypt(encryptedData)
 
@@ -232,7 +227,7 @@ class StreamCipher {
       }
       return { chunk, metadata }
     } catch (error) {
-      console.log('Decryption error:', error)
+      console.error('Decryption error:', error)
       throw new DecryptionError(`Failed to decrypt chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -264,34 +259,27 @@ async function readFileChunk(file: File, start: number, end: number): Promise<Ar
 
 async function readAndExtractChunk(file: File, offset: number) {
   try {
-    console.log(`Reading chunk at offset ${offset}`)
-    
     // First read metadata (36 bytes)
     if (offset + CONFIG.SIZES.METADATA > file.size) {
       throw new InvalidDataError('Not enough data for metadata')
     }
-    
+
     const metadataBuffer = await readFileChunk(file, offset, offset + CONFIG.SIZES.METADATA)
     const metadataBytes = new Uint8Array(metadataBuffer)
     const metadata = deserializeMetadata(metadataBytes)
-    
-    console.log('Extracted metadata:', metadata)
-    
+
     // Calculate chunk boundaries
     const chunkStart = offset + CONFIG.SIZES.METADATA
     const chunkEnd = chunkStart + metadata.size
-    
+
     // Validate chunk boundaries
     if (chunkEnd > file.size) {
       throw new InvalidDataError(`Chunk extends beyond file: chunk end ${chunkEnd}, file size ${file.size}`)
     }
-    
+
     // Read the actual encrypted chunk
     const chunkBuffer = await readFileChunk(file, chunkStart, chunkEnd)
     const chunkData = new Uint8Array(chunkBuffer)
-    
-    console.log(`Read chunk: offset=${offset}, metadata_size=${CONFIG.SIZES.METADATA}, chunk_size=${metadata.size}, total_read=${CONFIG.SIZES.METADATA + metadata.size}`)
-    
     return {
       data: chunkData,
       totalSize: CONFIG.SIZES.METADATA + metadata.size,
@@ -354,7 +342,6 @@ function createStreamHeader(streamHeader: StreamHeader) {
       const encodeHeader = aes.encrypt(headerBytes)
       const keyLength = streamHeader.key.encryptedKey.length
 
-      console.log('Encrypted encryptedHeaderBytes :',encodeHeader)
       const headerLength = new Uint8Array(2)
       new DataView(headerLength.buffer).setUint16(0, encodeHeader.length + keyLength, true)
 
@@ -403,7 +390,6 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
 
       return { header, headerLength: headerLength + headerOffset, key }
     } else if (receiver) {
-      console.log('Receiver provided:', receiver)
       const keyLengthOffset = headerOffset + 2
       const keyLengthBytes = data.slice(headerOffset, keyLengthOffset)
       const keyLength = new DataView(keyLengthBytes.buffer, keyLengthBytes.byteOffset).getUint16(0, true)
@@ -412,13 +398,10 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
 
       const encryptedHeaderBytes = data.slice(keyLengthOffset + keyLength, headerLength + keyLengthOffset)
 
-      console.log('Encrypted encryptedHeaderBytes :',encryptedHeaderBytes)
-
       const symmetricKey = ecies.decrypt(receiver, encryptedKey)
       if (!symmetricKey) {
         throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
       }
-      console.log('Symmetric key derived:', symmetricKey)
       const aes = managedNonce(gcm)(symmetricKey)
       const headerBytes = aes.decrypt(encryptedHeaderBytes)
       const headerJson = bytesToUtf8(headerBytes)
@@ -560,18 +543,14 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions) {
     let offset = headerLength
 
     onStage?.('Decrypting file...')
-    console.log(`Starting decryption with ${header.c} chunks, initial offset: ${offset}`)
 
     for (let i = 0; i < header.c; i++) {
-      console.log(`Processing chunk ${i + 1}/${header.c} at offset ${offset}`)
-      
       const chunkData = await readAndExtractChunk(file, offset)
       const { chunk } = await cipher.decryptChunk(chunkData.data, chunkData.metadata)
       chunks.push(chunk)
 
       offset += chunkData.totalSize
-      console.log(`Chunk ${i + 1} processed, next offset: ${offset}`)
-      
+
       onProgress?.(((i + 1) / header.c) * 100)
       await new Promise(resolve => setTimeout(resolve, 0))
     }
@@ -599,7 +578,6 @@ export async function streamEncryptWithPublicKey(options: StreamEncryptOptions) 
 
   const symmetricKey = randomBytes(CONFIG.SIZES.SYM_KEY)
   const encryptedKey = ecies.encrypt(receiver, symmetricKey)
-  console.log('Symmetric key derived:', symmetricKey)
   try {
     const cipher = new StreamCipher(symmetricKey)
     const chunks: Uint8Array[] = []
@@ -631,8 +609,6 @@ export async function streamEncryptWithPublicKey(options: StreamEncryptOptions) 
     }
 
     chunks.push(header)
-
-    console.log('Header created:', header)
 
     onStage?.('Encrypting file...')
 
@@ -702,18 +678,14 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
     }
 
     onStage?.('Decrypting file...')
-    console.log(`Starting decryption with ${header.c} chunks, initial offset: ${offset}`)
 
     for (let i = 0; i < header.c; i++) {
-      console.log(`Processing chunk ${i + 1}/${header.c} at offset ${offset}`)
-      
       const chunkData = await readAndExtractChunk(file, offset)
       const { chunk } = await cipher.decryptChunk(chunkData.data, chunkData.metadata)
       chunks.push(chunk)
-      
+
       offset += chunkData.totalSize
-      console.log(`Chunk ${i + 1} processed, next offset: ${offset}`)
-      
+
       onProgress?.(((i + 1) / header.c) * 100)
       await new Promise(resolve => setTimeout(resolve, 0))
     }
