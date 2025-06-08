@@ -30,6 +30,7 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
     password,
     isTextMode
   } = e.data
+  console.log('🚀 ~ self.onmessage= ~ e.data:', e.data)
 
   try {
     self.postMessage({ progress: 0, stage: 'Starting...' })
@@ -136,7 +137,11 @@ self.onmessage = async (e: MessageEvent<WorkerInput>) => {
 
         const receiver = encryptionMode === 'pubk' && privateKey ? Buffer.from(privateKey, 'hex') : undefined
         const _password = encryptionMode === 'pwd' ? password : undefined
-        const { header } = parseStreamHeader(new Uint8Array(headerData), _password, receiver)
+        const parseResult = parseStreamHeader(new Uint8Array(headerData), _password, receiver)
+        if (!parseResult) {
+          throw new Error('Failed to parse stream header')
+        }
+        const { header } = parseResult
 
         self.postMessage({ progress: 20, stage: 'Preparing decryption...' })
 

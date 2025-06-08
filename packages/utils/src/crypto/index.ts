@@ -57,7 +57,8 @@ const CONFIG = {
     NONCE: 12, // Nonce length for GCM
     SYM_KEY: 32, // Symmetric key length
     SIGNATURE: 64, // Signature length
-    HEADER_MAX: 2048 // Maximum header size to read
+    HEADER_MAX: 2048, // Maximum header size to read
+    METADATA: 36 // Metadata size (4 bytes size + 32 bytes hash)
   }
 } as const
 
@@ -169,6 +170,9 @@ function serializeMetadata(metadata: ChunkMetadata): Uint8Array {
 }
 
 function deserializeMetadata(bytes: Uint8Array): ChunkMetadata {
+  if (bytes.length < CONFIG.SIZES.METADATA) {
+    throw new InvalidDataError(`Invalid metadata size: expected ${CONFIG.SIZES.METADATA}, got ${bytes.length}`)
+  }
   const view = new DataView(bytes.buffer, bytes.byteOffset)
   return {
     size: view.getUint32(0, true),
@@ -195,8 +199,8 @@ class StreamCipher {
         size: encryptedChunk.length,
         hash
       }
-      console.log(chunk, encryptedChunk)
-      console.log(metadata)
+      console.log('Original chunk size:', chunk.length, 'Encrypted chunk size:', encryptedChunk.length)
+      console.log('Metadata:', metadata)
       const metadataBytes = serializeMetadata(metadata)
       return concatBytes(metadataBytes, encryptedChunk)
     } catch (error) {
@@ -212,9 +216,14 @@ class StreamCipher {
         throw new DecryptionError('Encrypted data is empty')
       }
 
-      console.log(metadata)
+      if (encryptedData.length !== metadata.size) {
+        throw new DecryptionError(`Encrypted data size mismatch: expected ${metadata.size}, got ${encryptedData.length}`)
+      }
+
+      console.log('Decrypting chunk with metadata:', metadata)
+      console.log('Encrypted data length:', encryptedData.length)
+      
       const cipher = managedNonce(gcm)(this.key)
-      console.log(encryptedData)
       const chunk = cipher.decrypt(encryptedData)
 
       const hash = new Uint8Array(sha256(chunk))
@@ -223,7 +232,7 @@ class StreamCipher {
       }
       return { chunk, metadata }
     } catch (error) {
-      console.log(error)
+      console.log('Decryption error:', error)
       throw new DecryptionError(`Failed to decrypt chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -255,19 +264,41 @@ async function readFileChunk(file: File, start: number, end: number): Promise<Ar
 
 async function readAndExtractChunk(file: File, offset: number) {
   try {
-    const buffer = await readFileChunk(file, offset, Math.min(offset + CONFIG.CHUNK.SIZE + 1024, file.size))
-    const data = new Uint8Array(buffer)
-
-    const metadataBytes = data.slice(0, 36)
+    console.log(`Reading chunk at offset ${offset}`)
+    
+    // First read metadata (36 bytes)
+    if (offset + CONFIG.SIZES.METADATA > file.size) {
+      throw new InvalidDataError('Not enough data for metadata')
+    }
+    
+    const metadataBuffer = await readFileChunk(file, offset, offset + CONFIG.SIZES.METADATA)
+    const metadataBytes = new Uint8Array(metadataBuffer)
     const metadata = deserializeMetadata(metadataBytes)
-    const totalSize = metadata.size + 36 + offset
-
+    
+    console.log('Extracted metadata:', metadata)
+    
+    // Calculate chunk boundaries
+    const chunkStart = offset + CONFIG.SIZES.METADATA
+    const chunkEnd = chunkStart + metadata.size
+    
+    // Validate chunk boundaries
+    if (chunkEnd > file.size) {
+      throw new InvalidDataError(`Chunk extends beyond file: chunk end ${chunkEnd}, file size ${file.size}`)
+    }
+    
+    // Read the actual encrypted chunk
+    const chunkBuffer = await readFileChunk(file, chunkStart, chunkEnd)
+    const chunkData = new Uint8Array(chunkBuffer)
+    
+    console.log(`Read chunk: offset=${offset}, metadata_size=${CONFIG.SIZES.METADATA}, chunk_size=${metadata.size}, total_read=${CONFIG.SIZES.METADATA + metadata.size}`)
+    
     return {
-      data: data.slice(36, totalSize),
-      totalSize,
+      data: chunkData,
+      totalSize: CONFIG.SIZES.METADATA + metadata.size,
       metadata
     }
   } catch (error) {
+    console.error('Error in readAndExtractChunk:', error)
     throw new InvalidDataError(`Failed to read chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
@@ -529,13 +560,18 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions) {
     let offset = headerLength
 
     onStage?.('Decrypting file...')
+    console.log(`Starting decryption with ${header.c} chunks, initial offset: ${offset}`)
 
     for (let i = 0; i < header.c; i++) {
+      console.log(`Processing chunk ${i + 1}/${header.c} at offset ${offset}`)
+      
       const chunkData = await readAndExtractChunk(file, offset)
       const { chunk } = await cipher.decryptChunk(chunkData.data, chunkData.metadata)
       chunks.push(chunk)
 
       offset += chunkData.totalSize
+      console.log(`Chunk ${i + 1} processed, next offset: ${offset}`)
+      
       onProgress?.(((i + 1) / header.c) * 100)
       await new Promise(resolve => setTimeout(resolve, 0))
     }
@@ -666,13 +702,18 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
     }
 
     onStage?.('Decrypting file...')
+    console.log(`Starting decryption with ${header.c} chunks, initial offset: ${offset}`)
 
     for (let i = 0; i < header.c; i++) {
+      console.log(`Processing chunk ${i + 1}/${header.c} at offset ${offset}`)
+      
       const chunkData = await readAndExtractChunk(file, offset)
       const { chunk } = await cipher.decryptChunk(chunkData.data, chunkData.metadata)
       chunks.push(chunk)
-      onStage?.('Creating decrypted file...' + i)
+      
       offset += chunkData.totalSize
+      console.log(`Chunk ${i + 1} processed, next offset: ${offset}`)
+      
       onProgress?.(((i + 1) / header.c) * 100)
       await new Promise(resolve => setTimeout(resolve, 0))
     }
