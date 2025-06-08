@@ -190,8 +190,12 @@ class StreamCipher {
       const metadataBytes = this.serializeMetadata(metadata)
       const encryptedChunk = this.cipher.encrypt(chunk)
 
+      // Use 4-byte length prefix to store metadata length
+      const metadataLengthBytes = new Uint8Array(4)
+      new DataView(metadataLengthBytes.buffer).setUint32(0, metadataBytes.length, true)
+
       return concatBytes(
-        new Uint8Array([metadataBytes.length]),
+        metadataLengthBytes,
         metadataBytes,
         encryptedChunk
       )
@@ -204,17 +208,23 @@ class StreamCipher {
     try {
       await waitForMemory()
 
-      if (encryptedData.length === 0) {
-        throw new DecryptionError('Encrypted data is empty')
+      if (encryptedData.length < 4) {
+        throw new DecryptionError('Encrypted data is too short')
       }
 
-      const metadataLength = encryptedData[0]
-      if (metadataLength === undefined || metadataLength < 0 || metadataLength > encryptedData.length - 1) {
-        throw new DecryptionError('Invalid metadata length')
+      // Read 4-byte metadata length
+      const metadataLength = new DataView(encryptedData.buffer, encryptedData.byteOffset).getUint32(0, true)
+
+      if (metadataLength <= 0 || metadataLength > encryptedData.length - 4) {
+        throw new DecryptionError(`Invalid metadata length: ${metadataLength}`)
       }
 
-      const metadataBytes = encryptedData.slice(1, 1 + metadataLength)
-      const encryptedChunk = encryptedData.slice(1 + metadataLength)
+      const metadataBytes = encryptedData.slice(4, 4 + metadataLength)
+      const encryptedChunk = encryptedData.slice(4 + metadataLength)
+
+      if (encryptedChunk.length === 0) {
+        throw new DecryptionError('No encrypted chunk data found')
+      }
 
       const metadata = this.deserializeMetadata(metadataBytes)
       const chunk = this.cipher.decrypt(encryptedChunk)
@@ -244,6 +254,10 @@ class StreamCipher {
   }
 
   private deserializeMetadata(bytes: Uint8Array): ChunkMetadata {
+    if (bytes.length < 44) { // 4 + 4 + 4 + 32 = 44 bytes minimum
+      throw new DecryptionError(`Metadata too short: ${bytes.length} bytes`)
+    }
+
     const view = new DataView(bytes.buffer, bytes.byteOffset)
     return {
       index: view.getUint32(0, true),
@@ -278,29 +292,62 @@ async function readFileChunk(file: File, start: number, end: number): Promise<Ar
   })
 }
 
-function findChunkBoundary(data: Uint8Array, metadataLength: number): number {
-  const estimatedSize = 1 + metadataLength + CONFIG.CHUNK.SIZE + 16
-  return Math.min(estimatedSize, data.length)
-}
-
 async function readAndExtractChunk(file: File, offset: number): Promise<{ data: Uint8Array; totalSize: number }> {
   try {
-    const buffer = await readFileChunk(file, offset, Math.min(offset + CONFIG.CHUNK.SIZE + 1024, file.size))
-    const data = new Uint8Array(buffer)
+    // Read initial buffer to extract metadata length (up to 1024 bytes)
+    const initialBuffer = await readFileChunk(file, offset, Math.min(offset + 1024, file.size));
+    const initialData = new Uint8Array(initialBuffer);
 
-    const metadataLength = data[0]
-    if (metadataLength === undefined) {
-      throw new DecryptionError('Invalid metadata length')
+    if (initialData.length < 4) {
+      throw new DecryptionError('Insufficient data to read metadata length');
     }
 
-    const totalSize = findChunkBoundary(data, metadataLength)
+    // Extract 4-byte metadata length
+    const metadataLength = new DataView(initialData.buffer, initialData.byteOffset).getUint32(0, true);
+
+    if (metadataLength <= 0 || metadataLength > 1024) {
+      throw new DecryptionError(`Invalid metadata length: ${metadataLength}`);
+    }
+
+    // Estimate total read size: 4-byte length + metadata + encrypted data (chunk size + 64-byte margin)
+    const estimatedEncryptedSize = CONFIG.CHUNK.SIZE + 64;
+    const totalReadSize = 4 + metadataLength + estimatedEncryptedSize;
+
+    // Read the complete chunk data
+    const fullBuffer = await readFileChunk(file, offset, Math.min(offset + totalReadSize, file.size));
+    const fullData = new Uint8Array(fullBuffer);
+
+    if (fullData.length < 4 + metadataLength) {
+      throw new DecryptionError('Insufficient data for metadata');
+    }
+
+    // Extract metadata and parse original chunk size
+    const metadataBytes = fullData.slice(4, 4 + metadataLength);
+    if (metadataBytes.length < 44) {
+      throw new DecryptionError('Metadata too short');
+    }
+
+    const originalSize = new DataView(metadataBytes.buffer, metadataBytes.byteOffset).getUint32(8, true);
+
+    // Calculate actual total size: 4-byte length + metadata + encrypted data (original size + 16-byte GCM tag + 12-byte nonce)
+    const encryptedDataSize = originalSize + 16 + 12;
+    const actualTotalSize = 4 + metadataLength + encryptedDataSize;
+
+    // Ensure sufficient data was read, re-read if necessary
+    if (fullData.length < actualTotalSize) {
+      const completeBuffer = await readFileChunk(file, offset, Math.min(offset + actualTotalSize, file.size));
+      return {
+        data: new Uint8Array(completeBuffer).slice(0, actualTotalSize),
+        totalSize: actualTotalSize,
+      };
+    }
 
     return {
-      data: data.slice(0, totalSize),
-      totalSize
-    }
+      data: fullData.slice(0, actualTotalSize),
+      totalSize: actualTotalSize,
+    };
   } catch (error) {
-    throw new InvalidDataError(`Failed to read chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    throw new InvalidDataError(`Failed to read chunk: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
