@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-unused-vars */
-import { gcm } from '@noble/ciphers/aes'
+import { xchacha20poly1305 as gcm } from '@noble/ciphers/chacha'
 import { bytesToUtf8, concatBytes, utf8ToBytes } from '@noble/ciphers/utils'
 import { managedNonce, randomBytes } from '@noble/ciphers/webcrypto'
 import { secp256k1 } from '@noble/curves/secp256k1'
@@ -11,39 +11,52 @@ import * as ecies from 'eciesjs'
 
 // Types and interfaces
 interface HeaderData {
-  e: string    // extension
-  c: number    // chunk count
-  s?: Uint8Array  // signature
+  e: string; // extension
+  c: number; // chunk count
+  s?: Uint8Array; // signature
+}
+
+interface StreamHeader {
+  ext: string;
+  totalChunks: number;
+  pwd?: {
+    key: Uint8Array;
+    salt: Uint8Array;
+  };
+  key?: {
+    receiver: Uint8Array;
+    key: Uint8Array;
+    encryptedKey: Uint8Array;
+    signature?: Uint8Array;
+  };
 }
 
 interface ChunkMetadata {
-  index: number
-  totalChunks: number
-  size: number
-  hash: Uint8Array
+  size: number;
+  hash: Uint8Array;
 }
 
-type ProgressCallback = (progress: number) => void
-type StageCallback = (stage: string) => void
+type ProgressCallback = (progress: number) => void;
+type StageCallback = (stage: string) => void;
 
 // Crypto configuration
 const CONFIG = {
   CHUNK: {
-    SIZE: 10 * 1024 * 1024,    // 10MB chunks for processing
-    BUFFER: 20 * 1024 * 1024,  // 20MB buffer for streaming
+    SIZE: 10 * 1024 * 1024, // 10MB chunks for processing
+    BUFFER: 20 * 1024 * 1024, // 20MB buffer for streaming
     MAX_MEMORY: 100 * 1024 * 1024 // 100MB max memory per operation
   },
   ARGON2: {
-    t: 3,      // Time cost
-    m: 1280,   // Memory cost (in KiB)
-    p: 4,      // Parallelism
-    maxmem: 2 ** 32 - 1  // Maximum memory (4GB)
+    t: 3, // Time cost
+    m: 1280, // Memory cost (in KiB)
+    p: 4, // Parallelism
+    maxmem: 2 ** 32 - 1 // Maximum memory (4GB)
   },
   SIZES: {
-    SALT: 16,        // Salt length in bytes
-    NONCE: 12,       // Nonce length for GCM
-    SYM_KEY: 32,     // Symmetric key length
-    SIGNATURE: 64,   // Signature length
+    SALT: 16, // Salt length in bytes
+    NONCE: 12, // Nonce length for GCM
+    SYM_KEY: 32, // Symmetric key length
+    SIGNATURE: 64, // Signature length
     HEADER_MAX: 2048 // Maximum header size to read
   }
 } as const
@@ -55,24 +68,7 @@ const MAGIC_BYTES = {
   SIGNED: 'ns2'
 } as const
 
-// MIME types for common file extensions
-const MIME_TYPES: Readonly<Record<string, string>> = {
-  'txt': 'text/plain',
-  'pdf': 'application/pdf',
-  'doc': 'application/msword',
-  'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'jpg': 'image/jpeg',
-  'jpeg': 'image/jpeg',
-  'png': 'image/png',
-  'gif': 'image/gif',
-  'mp4': 'video/mp4',
-  'mp3': 'audio/mpeg',
-  'zip': 'application/zip',
-  'json': 'application/json',
-  'xml': 'application/xml'
-}
-
-type MagicBytesType = typeof MAGIC_BYTES[keyof typeof MAGIC_BYTES]
+type MagicBytesType = (typeof MAGIC_BYTES)[keyof typeof MAGIC_BYTES];
 
 // Error messages
 const ERROR_MESSAGES = {
@@ -93,19 +89,19 @@ const ERROR_MESSAGES = {
 
 // Streaming encryption/decryption interfaces
 export interface StreamBaseOptions {
-  file: File
-  password?: string
-  receiver?: Uint8Array
-  onProgress?: ProgressCallback
-  onStage?: StageCallback
+  file: File;
+  password?: string;
+  receiver?: Uint8Array;
+  onProgress?: ProgressCallback;
+  onStage?: StageCallback;
 }
 
 export interface StreamEncryptOptions extends StreamBaseOptions {
-  sender?: { privKeyBytes: Uint8Array }
+  sender?: { privKeyBytes: Uint8Array };
 }
 
 export interface StreamDecryptOptions extends StreamBaseOptions {
-  sender?: Uint8Array
+  sender?: Uint8Array;
 }
 
 // Error types
@@ -150,7 +146,7 @@ function getMemoryUsage(): number {
 }
 
 function waitForMemory(threshold: number = CONFIG.CHUNK.MAX_MEMORY): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const checkMemory = () => {
       if (getMemoryUsage() < threshold) {
         resolve()
@@ -165,42 +161,48 @@ function waitForMemory(threshold: number = CONFIG.CHUNK.MAX_MEMORY): Promise<voi
   })
 }
 
+function serializeMetadata(metadata: ChunkMetadata): Uint8Array {
+  const sizeBytes = new Uint8Array(4)
+  new DataView(sizeBytes.buffer).setUint32(0, metadata.size, true)
+
+  return concatBytes(sizeBytes, metadata.hash)
+}
+
+function deserializeMetadata(bytes: Uint8Array): ChunkMetadata {
+  const view = new DataView(bytes.buffer, bytes.byteOffset)
+  return {
+    size: view.getUint32(0, true),
+    hash: bytes.slice(4, 36)
+  }
+}
+
 // Stream cipher for large files
 class StreamCipher {
   private key: Uint8Array
-  private chunkIndex: number = 0
-  private cipher: ReturnType<ReturnType<typeof managedNonce<typeof gcm>>>
 
   constructor(key: Uint8Array) {
     this.key = key
-    this.cipher = managedNonce(gcm)(key)
   }
 
-  async encryptChunk(chunk: Uint8Array, totalChunks: number): Promise<Uint8Array> {
+  async encryptChunk(chunk: Uint8Array): Promise<Uint8Array> {
     try {
       await waitForMemory()
+      const hash = new Uint8Array(sha256(chunk))
+      const cipher = managedNonce(gcm)(this.key)
 
+      const encryptedChunk = cipher.encrypt(chunk)
       const metadata: ChunkMetadata = {
-        index: this.chunkIndex++,
-        totalChunks,
-        size: chunk.length,
-        hash: new Uint8Array(sha256(chunk))
+        size: encryptedChunk.length,
+        hash
       }
-
-      const metadataBytes = this.serializeMetadata(metadata)
-      const encryptedChunk = this.cipher.encrypt(chunk)
-
-      return concatBytes(
-        new Uint8Array([metadataBytes.length]),
-        metadataBytes,
-        encryptedChunk
-      )
+      const metadataBytes = serializeMetadata(metadata)
+      return concatBytes(metadataBytes, encryptedChunk)
     } catch (error) {
       throw new EncryptionError(`Failed to encrypt chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
-  async decryptChunk(encryptedData: Uint8Array): Promise<{ chunk: Uint8Array; metadata: ChunkMetadata }> {
+  async decryptChunk(encryptedData: Uint8Array, metadata: ChunkMetadata) {
     try {
       await waitForMemory()
 
@@ -208,48 +210,16 @@ class StreamCipher {
         throw new DecryptionError('Encrypted data is empty')
       }
 
-      const metadataLength = encryptedData[0]
-      if (metadataLength === undefined || metadataLength < 0 || metadataLength > encryptedData.length - 1) {
-        throw new DecryptionError('Invalid metadata length')
-      }
-
-      const metadataBytes = encryptedData.slice(1, 1 + metadataLength)
-      const encryptedChunk = encryptedData.slice(1 + metadataLength)
-
-      const metadata = this.deserializeMetadata(metadataBytes)
-      const chunk = this.cipher.decrypt(encryptedChunk)
+      const cipher = managedNonce(gcm)(this.key)
+      const chunk = cipher.decrypt(encryptedData)
 
       const hash = new Uint8Array(sha256(chunk))
       if (!this.compareArrays(hash, metadata.hash)) {
         throw new DecryptionError(ERROR_MESSAGES.CHUNK_INTEGRITY_FAILED)
       }
-
       return { chunk, metadata }
     } catch (error) {
       throw new DecryptionError(`Failed to decrypt chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  private serializeMetadata(metadata: ChunkMetadata): Uint8Array {
-    const indexBytes = new Uint8Array(4)
-    new DataView(indexBytes.buffer).setUint32(0, metadata.index, true)
-
-    const totalChunksBytes = new Uint8Array(4)
-    new DataView(totalChunksBytes.buffer).setUint32(0, metadata.totalChunks, true)
-
-    const sizeBytes = new Uint8Array(4)
-    new DataView(sizeBytes.buffer).setUint32(0, metadata.size, true)
-
-    return concatBytes(indexBytes, totalChunksBytes, sizeBytes, metadata.hash)
-  }
-
-  private deserializeMetadata(bytes: Uint8Array): ChunkMetadata {
-    const view = new DataView(bytes.buffer, bytes.byteOffset)
-    return {
-      index: view.getUint32(0, true),
-      totalChunks: view.getUint32(4, true),
-      size: view.getUint32(8, true),
-      hash: bytes.slice(12, 44)
     }
   }
 
@@ -278,26 +248,22 @@ async function readFileChunk(file: File, start: number, end: number): Promise<Ar
   })
 }
 
-function findChunkBoundary(data: Uint8Array, metadataLength: number): number {
-  const estimatedSize = 1 + metadataLength + CONFIG.CHUNK.SIZE + 16
-  return Math.min(estimatedSize, data.length)
-}
-
-async function readAndExtractChunk(file: File, offset: number): Promise<{ data: Uint8Array; totalSize: number }> {
+async function readAndExtractChunk(file: File, offset: number) {
   try {
-    const buffer = await readFileChunk(file, offset, Math.min(offset + CONFIG.CHUNK.SIZE + 1024, file.size))
-    const data = new Uint8Array(buffer)
+    // First read the metadata part (36 bytes)
+    const metadataBuffer = await readFileChunk(file, offset, offset + 36)
+    const metadataBytes = new Uint8Array(metadataBuffer)
+    const metadata = deserializeMetadata(metadataBytes)
 
-    const metadataLength = data[0]
-    if (metadataLength === undefined) {
-      throw new DecryptionError('Invalid metadata length')
-    }
-
-    const totalSize = findChunkBoundary(data, metadataLength)
+    // Now we know the actual data size, read the complete chunk
+    const totalChunkSize = 36 + metadata.size // metadata + encrypted data
+    const fullBuffer = await readFileChunk(file, offset, offset + totalChunkSize)
+    const fullData = new Uint8Array(fullBuffer)
 
     return {
-      data: data.slice(0, totalSize),
-      totalSize
+      data: fullData.slice(36), // Only return the encrypted data part
+      totalSize: totalChunkSize, // Total size of this chunk
+      metadata
     }
   } catch (error) {
     throw new InvalidDataError(`Failed to read chunk: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -323,49 +289,62 @@ async function hashFile(file: File): Promise<Uint8Array> {
 }
 
 function getMimeType(ext: string): string {
-  return MIME_TYPES[ext.toLowerCase()] || 'application/octet-stream'
+  return 'application/octet-stream'
 }
 
 // Create streaming header
-function createStreamHeader(
-  ext: string,
-  totalChunks: number,
-  isPasswordMode: boolean,
-  key?: Uint8Array,
-  salt?: Uint8Array,
-  receiver?: Uint8Array,
-  signature?: Uint8Array
-): Uint8Array {
+function createStreamHeader(streamHeader: StreamHeader) {
+  const header: HeaderData = {
+    e: streamHeader.ext,
+    c: streamHeader.totalChunks
+  }
+
   try {
-    const magicBytes = isPasswordMode ? MAGIC_BYTES.PASSWORD : (signature ? MAGIC_BYTES.SIGNED : MAGIC_BYTES.PUBLIC_KEY)
-    const header = {
-      e: ext,
-      c: totalChunks,
-      s: signature
+    if (streamHeader.pwd) {
+      const aes = managedNonce(gcm)(streamHeader.pwd.key)
+      const headerJson = JSON.stringify(header)
+      const headerBytes = utf8ToBytes(headerJson)
+      const encodeHeader = aes.encrypt(headerBytes)
+
+      // Total length = salt(16) + encrypted header
+      const totalLength = CONFIG.SIZES.SALT + encodeHeader.length
+      const headerLength = new Uint8Array(2)
+      new DataView(headerLength.buffer).setUint16(0, totalLength, true)
+
+      return concatBytes(
+        utf8ToBytes(MAGIC_BYTES.PASSWORD),
+        headerLength,
+        streamHeader.pwd.salt,
+        encodeHeader
+      )
     }
 
-    const headerJson = JSON.stringify(header)
-    const headerBytes = utf8ToBytes(headerJson)
+    if (streamHeader.key) {
+      const magicBytes = streamHeader.key.signature ? MAGIC_BYTES.SIGNED : MAGIC_BYTES.PUBLIC_KEY
+      header.s = streamHeader.key.signature
+      const headerJson = JSON.stringify(header)
+      const headerBytes = utf8ToBytes(headerJson)
+      const aes = managedNonce(gcm)(streamHeader.key.key)
 
-    let encodeHeader: Uint8Array
-    if (isPasswordMode && key) {
-      const aes = managedNonce(gcm)(key)
-      encodeHeader = aes.encrypt(headerBytes)
-    } else if (receiver) {
-      encodeHeader = ecies.encrypt(receiver, headerBytes)
-    } else {
-      throw new Error('Either key or receiver is required')
+      const encodeHeader = aes.encrypt(headerBytes)
+      const keyLength = streamHeader.key.encryptedKey.length
+
+      // Total length = key length field(2) + encrypted key + encrypted header
+      const totalLength = 2 + keyLength + encodeHeader.length
+      const headerLength = new Uint8Array(2)
+      new DataView(headerLength.buffer).setUint16(0, totalLength, true)
+
+      const keyLengthBytes = new Uint8Array(2)
+      new DataView(keyLengthBytes.buffer).setUint16(0, keyLength, true)
+
+      return concatBytes(
+        utf8ToBytes(magicBytes),
+        headerLength,
+        keyLengthBytes,
+        streamHeader.key.encryptedKey,
+        encodeHeader
+      )
     }
-
-    const totalLength = salt ? encodeHeader.length + 16 : encodeHeader.length
-    const headerLength = new Uint8Array(2)
-    new DataView(headerLength.buffer).setUint16(0, totalLength, true)
-
-    return concatBytes(
-      utf8ToBytes(magicBytes),
-      headerLength,
-      ...(salt ? [salt, encodeHeader] : [encodeHeader])
-    )
   } catch (error) {
     throw new EncryptionError(`Failed to create header: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
@@ -380,48 +359,66 @@ export function parseStreamHeader(data: Uint8Array, password?: string, receiver?
     }
 
     const headerLengthBytes = data.slice(3, 5)
-    const headerLength = new DataView(headerLengthBytes.buffer, headerLengthBytes.byteOffset).getUint16(0, true)
-
+    const totalHeaderLength = new DataView(headerLengthBytes.buffer, headerLengthBytes.byteOffset).getUint16(0, true)
     const isPasswordMode = magicBytes === MAGIC_BYTES.PASSWORD
-    const saltOffset = 5
-    const headerOffset = isPasswordMode ? saltOffset + 16 : saltOffset
+    const headerOffset = 5
 
-    const salt = isPasswordMode ? data.slice(saltOffset, headerOffset) : undefined
-    const encryptedHeaderBytes = data.slice(headerOffset, headerLength + saltOffset)
+    if (isPasswordMode) {
+      const salt = data.slice(headerOffset, headerOffset + CONFIG.SIZES.SALT)
+      const encryptedHeaderBytes = data.slice(headerOffset + CONFIG.SIZES.SALT, totalHeaderLength + headerOffset)
 
-    let headerBytes: Uint8Array
-    let key
-    if (isPasswordMode && password && salt) {
-      key = argon2id(password, salt, CONFIG.ARGON2)
+      if (!password) {
+        throw new InvalidDataError(ERROR_MESSAGES.PASSWORD_REQUIRED)
+      }
+      const key = argon2id(password, salt, CONFIG.ARGON2)
       const aes = managedNonce(gcm)(key)
-      headerBytes = aes.decrypt(encryptedHeaderBytes)
-    } else if (!isPasswordMode && receiver) {
-      headerBytes = ecies.decrypt(receiver, encryptedHeaderBytes)
-    } else {
-      throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
+
+      const headerBytes = aes.decrypt(encryptedHeaderBytes)
+      const headerJson = bytesToUtf8(headerBytes)
+      const header = JSON.parse(headerJson) as HeaderData
+
+      return { header, headerLength: totalHeaderLength + headerOffset, key }
+    } else if (receiver) {
+      // Read key length (2 bytes)
+      const keyLengthBytes = data.slice(headerOffset, headerOffset + 2)
+      const keyLength = new DataView(keyLengthBytes.buffer, keyLengthBytes.byteOffset).getUint16(0, true)
+
+      // Extract encrypted symmetric key
+      const encryptedKey = data.slice(headerOffset + 2, headerOffset + 2 + keyLength)
+
+      // Calculate position and size of encrypted header data
+      const encryptedHeaderStart = headerOffset + 2 + keyLength
+      const encryptedHeaderEnd = headerOffset + totalHeaderLength
+      const encryptedHeaderBytes = data.slice(encryptedHeaderStart, encryptedHeaderEnd)
+
+      const symmetricKey = ecies.decrypt(receiver, encryptedKey)
+      if (!symmetricKey) {
+        throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
+      }
+      const aes = managedNonce(gcm)(symmetricKey)
+      const headerBytes = aes.decrypt(encryptedHeaderBytes)
+      const headerJson = bytesToUtf8(headerBytes)
+      const header = JSON.parse(headerJson) as HeaderData
+
+      return {
+        header,
+        headerLength: headerOffset + totalHeaderLength, // Complete header length
+        signature: header.s,
+        key: symmetricKey
+      }
     }
-
-    const headerJson = bytesToUtf8(headerBytes)
-    const header = JSON.parse(headerJson) as HeaderData
-
-    return { header, headerLength: headerLength + 5, signature: header.s, key }
   } catch (error) {
     throw new DecryptionError(`Failed to parse header: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
 // Detect encryption type and file metadata
-export async function detect(fileOrBase64: File | string): Promise<{
-  encryptionType: 'pwd' | 'pubk' | 'signed' | 'unencrypted'
-  extension?: string
-  chunkCount?: number
-  isText: boolean
-}> {
+export async function detect(fileOrBase64: File | string) {
   try {
     const ENCRYPTION_TYPE_MAP: Record<string, 'pwd' | 'pubk' | 'signed'> = {
       [MAGIC_BYTES.PASSWORD]: 'pwd',
       [MAGIC_BYTES.PUBLIC_KEY]: 'pubk',
-      [MAGIC_BYTES.SIGNED]: 'signed',
+      [MAGIC_BYTES.SIGNED]: 'signed'
     }
 
     const isText = typeof fileOrBase64 === 'string'
@@ -447,7 +444,7 @@ export async function detect(fileOrBase64: File | string): Promise<{
 }
 
 // Stream encrypt with password
-export async function streamEncryptWithPassword(options: StreamEncryptOptions): Promise<Blob> {
+export async function streamEncryptWithPassword(options: StreamEncryptOptions) {
   const { file, password, onProgress, onStage } = options
 
   if (!password) {
@@ -469,14 +466,18 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
       throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
     }
     const cipher = new StreamCipher(key)
-    const header = createStreamHeader(
+    const header = createStreamHeader({
       ext,
       totalChunks,
-      true,
-      key,
-      salt
-    )
+      pwd: {
+        key,
+        salt
+      }
+    })
 
+    if (!header) {
+      throw new EncryptionError('Failed to create header')
+    }
     chunks.push(header)
 
     onStage?.('Encrypting file...')
@@ -489,7 +490,7 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
       onProgress?.((i / totalChunks) * 100)
       await new Promise(resolve => setTimeout(resolve, 0))
 
-      const encryptedChunk = await cipher.encryptChunk(new Uint8Array(chunk), totalChunks)
+      const encryptedChunk = await cipher.encryptChunk(new Uint8Array(chunk))
       chunks.push(encryptedChunk)
 
       onProgress?.(((i + 1) / totalChunks) * 100)
@@ -508,7 +509,7 @@ export async function streamEncryptWithPassword(options: StreamEncryptOptions): 
 }
 
 // Stream decrypt with password
-export async function streamDecryptWithPassword(options: StreamDecryptOptions): Promise<{ file: Blob; signatureValid?: boolean }> {
+export async function streamDecryptWithPassword(options: StreamDecryptOptions) {
   const { file, password, onProgress, onStage } = options
 
   if (!password) {
@@ -524,7 +525,11 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
     throw new InvalidDataError(ERROR_MESSAGES.NOT_PASSWORD_ENCRYPTED)
   }
 
-  const { header, key, headerLength } = parseStreamHeader(new Uint8Array(headerData), password, undefined)
+  const parsedHeader = parseStreamHeader(new Uint8Array(headerData), password, undefined)
+  if (!parsedHeader) {
+    throw new InvalidDataError(ERROR_MESSAGES.INVALID_FORMAT)
+  }
+  const { header, key, headerLength } = parsedHeader
   onStage?.('Deriving decryption key...')
 
   try {
@@ -539,7 +544,7 @@ export async function streamDecryptWithPassword(options: StreamDecryptOptions): 
 
     for (let i = 0; i < header.c; i++) {
       const chunkData = await readAndExtractChunk(file, offset)
-      const { chunk } = await cipher.decryptChunk(chunkData.data)
+      const { chunk } = await cipher.decryptChunk(chunkData.data, chunkData.metadata)
       chunks.push(chunk)
 
       offset += chunkData.totalSize
@@ -570,7 +575,6 @@ export async function streamEncryptWithPublicKey(options: StreamEncryptOptions) 
 
   const symmetricKey = randomBytes(CONFIG.SIZES.SYM_KEY)
   const encryptedKey = ecies.encrypt(receiver, symmetricKey)
-
   try {
     const cipher = new StreamCipher(symmetricKey)
     const chunks: Uint8Array[] = []
@@ -586,20 +590,22 @@ export async function streamEncryptWithPublicKey(options: StreamEncryptOptions) 
       signature = sig.toCompactRawBytes()
     }
 
-    const header = createStreamHeader(
+    const header = createStreamHeader({
       ext,
       totalChunks,
-      false,
-      undefined,
-      undefined,
-      receiver,
-      signature
-    )
+      key: {
+        receiver: receiver,
+        key: symmetricKey,
+        encryptedKey: encryptedKey,
+        signature: signature
+      }
+    })
 
-    const keyLength = new Uint8Array(2)
-    new DataView(keyLength.buffer).setUint16(0, encryptedKey.length, true)
+    if (!header) {
+      throw new EncryptionError('Failed to create header')
+    }
 
-    chunks.push(concatBytes(header, keyLength, encryptedKey))
+    chunks.push(header)
 
     onStage?.('Encrypting file...')
 
@@ -608,7 +614,7 @@ export async function streamEncryptWithPublicKey(options: StreamEncryptOptions) 
       const end = Math.min(start + CONFIG.CHUNK.SIZE, fileSize)
 
       const chunk = await readFileChunk(file, start, end)
-      const encryptedChunk = await cipher.encryptChunk(new Uint8Array(chunk), totalChunks)
+      const encryptedChunk = await cipher.encryptChunk(new Uint8Array(chunk))
       chunks.push(encryptedChunk)
 
       onProgress?.(((i + 1) / totalChunks) * 100)
@@ -642,23 +648,19 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
     throw new InvalidDataError(ERROR_MESSAGES.NOT_PUBKEY_ENCRYPTED)
   }
 
-  const { header, headerLength, signature } = parseStreamHeader(headerArray, undefined, receiver)
-
-  const keyLengthOffset = headerLength
-  const keyLength = new DataView(headerArray.buffer, headerArray.byteOffset + keyLengthOffset).getUint16(0, true)
-  const encryptedKey = headerArray.slice(keyLengthOffset + 2, keyLengthOffset + 2 + keyLength)
-
-  onStage?.('Decrypting encryption key...')
-
-  const symmetricKey = ecies.decrypt(receiver, encryptedKey)
+  const parsedHeader = parseStreamHeader(headerArray, undefined, receiver)
+  if (!parsedHeader) {
+    throw new InvalidDataError(ERROR_MESSAGES.INVALID_FORMAT)
+  }
+  const { header, headerLength, signature, key } = parsedHeader
 
   try {
-    if (!symmetricKey) {
+    if (!key) {
       throw new InvalidDataError(ERROR_MESSAGES.MISSING_DECRYPT_PARAMS)
     }
-    const cipher = new StreamCipher(symmetricKey)
+    const cipher = new StreamCipher(key)
     const chunks: Uint8Array[] = []
-    let offset = keyLengthOffset + 2 + keyLength
+    let offset = headerLength
     let isValid: boolean | undefined
 
     if (signature && sender) {
@@ -676,9 +678,9 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
 
     for (let i = 0; i < header.c; i++) {
       const chunkData = await readAndExtractChunk(file, offset)
-      const { chunk } = await cipher.decryptChunk(chunkData.data)
+      const { chunk } = await cipher.decryptChunk(chunkData.data, chunkData.metadata)
       chunks.push(chunk)
-
+      onStage?.('Creating decrypted file...' + i)
       offset += chunkData.totalSize
       onProgress?.(((i + 1) / header.c) * 100)
       await new Promise(resolve => setTimeout(resolve, 0))
@@ -689,8 +691,8 @@ export async function streamDecryptWithPrivateKey(options: StreamDecryptOptions)
 
     return { file: new Blob(chunks, { type: getMimeType(header.e) }), signatureValid: isValid }
   } finally {
-    if (symmetricKey) {
-      secureClear(symmetricKey.buffer)
+    if (key) {
+      secureClear(key.buffer)
     }
   }
 }
