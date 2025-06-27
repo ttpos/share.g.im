@@ -1,49 +1,36 @@
 'use client'
 
-import { base58 } from '@scure/base'
-import { HDKey } from '@scure/bip32'
-import * as bip39 from '@scure/bip39'
-import { wordlist } from '@scure/bip39/wordlists/english'
-import { Lock, Unlock, Download, Key, Clipboard, RefreshCw, X, Upload } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { deriveKeyPair, detect, isBase58String, isHexString, isMnemonicPhrase, validateBase58PublicKey } from '@ttpos/share-utils'
+import { Download, RefreshCw, X, Copy } from 'lucide-react'
+import Image from 'next/image'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 
-import FeaturesSection from '@/components/FeaturesSection'
-import { FileInfoDisplay } from '@/components/FileInfoDisplay'
-import ModeSwitcher from '@/components/ModeSwitcher'
-import ProgressIndicator from '@/components/ProgressIndicator'
+import HowItWorksSection from '@/components/HowItWorksSection'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
+import { PasswordInput } from '@/components/ui/password-input'
 import {
-  DEFAULT_DERIVATION_PATH,
-  generateTimestamp,
-  getFilenameWithoutExtension,
-  identifyEncryptionMode,
-  validateBase58PublicKey
-} from '@/lib/utils'
-import { FileInfo, KeyPair } from '@/types'
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { cn, generateDownloadFilename } from '@/lib/utils'
+import { FileInfo } from '@/types'
 
-export default function Home() {
-  const pathname = usePathname()
+export default function HomePage() {
+  const [inputType, setInputType] = useState<'file' | 'message'>('message')
   const [keyInput, setKeyInput] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [textInput, setTextInput] = useState('')
-  const [inputType, setInputType] = useState<'file' | 'message'>('message')
-  const [encryptedText, setEncryptedText] = useState('')
   const [encryptedData, setEncryptedData] = useState<Blob | null>(null)
-  const [decryptedText, setDecryptedText] = useState('')
-  const [decryptedData, setDecryptedData] = useState<Blob | null>(null)
+  const [textResult, setTextResult] = useState<string | null>(null)
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [processingProgress, setProcessingProgress] = useState(0)
-  const [processingStage, setProcessingStage] = useState('')
+  const [progress, setProgress] = useState(0)
+  const [processMode, setProcessMode] = useState<'encrypt' | 'decrypt'>('encrypt')
   const workerRef = useRef<Worker | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -61,8 +48,8 @@ export default function Home() {
           const validation = validateBase58PublicKey(pubKey)
           if (validation.isValid) {
             setKeyInput(pubKey)
+            setProcessMode('encrypt')
           } else {
-            toast.error('Invalid public key in URL')
             setKeyInput('')
           }
         } else {
@@ -76,104 +63,53 @@ export default function Home() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  const handleFileDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const file = e.dataTransfer.files[0]
-    if (file) {
-      setSelectedFile(file)
-      setTextInput('')
-      setInputType('file')
-      const encryptionMode = await identifyEncryptionMode(file) as FileInfo['encryptionMode']
-      setFileInfo({
-        name: file.name,
-        size: file.size,
-        type: file.type || 'Unknown',
-        encryptionMode: encryptionMode
-      })
-    }
+  const triggerFileInput = () => {
+    fileInputRef.current?.click()
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
-      setTextInput('')
-      setInputType('file')
-      const encryptionMode = await identifyEncryptionMode(file) as FileInfo['encryptionMode']
-      setFileInfo({
-        name: file.name,
-        size: file.size,
-        type: file.type || 'Unknown',
-        encryptionMode
-      })
+      try {
+        setSelectedFile(file)
+        setFileInfo({
+          name: file.name,
+          size: file.size,
+          type: file.type || 'Unknown',
+          encryptionMode: 'public-key'
+        })
+        setTextInput('')
+        setInputType('file')
+        const metadata = await detect(file)
+
+        if (metadata.encryptionType === 'pubk') {
+          if (inputType !== 'file') {
+            toast.info('Detected public key encrypted file, switching to Key Encryption mode')
+            setInputType('file')
+          }
+          setProcessMode(file.name.endsWith('.enc') ? 'decrypt' : 'encrypt')
+        } else if (metadata.encryptionType === 'signed') {
+          toast.error('Signed files are not supported yet')
+          clearState()
+          return
+        } else {
+          setProcessMode('encrypt')
+        }
+      } catch (error) {
+        console.error('File detection failed:', error)
+        toast.error('Failed to process file')
+        clearState()
+      }
     }
   }
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setTextInput(e.target.value)
-    setInputType('message')
-  }
-
-  const handleClearFile = () => {
-    setSelectedFile(null)
-    setFileInfo(null)
-    setTextInput('')
-    setEncryptedText('')
-    setEncryptedData(null)
-    setDecryptedText('')
-    setDecryptedData(null)
-    setIsDialogOpen(false)
-    setIsProcessing(false)
-    setProcessingProgress(0)
-    setProcessingStage('')
-    setInputType('message')
-    toast.success('File cleared. You can now input text.')
-  }
-
-  const handleDownloadEncrypted = useCallback(() => {
-    if (encryptedData) {
-      const timestamp = generateTimestamp()
-      downloadFile(encryptedData, `encrypted_${inputType === 'message' ? 'text' : getFilenameWithoutExtension(fileInfo?.name || 'file')}_${timestamp}.enc`)
-      toast.success('Encrypted file downloaded')
-    }
-  }, [encryptedData, fileInfo, inputType])
-
-  const handleDownloadDecrypted = useCallback(() => {
-    if (decryptedData) {
-      const timestamp = generateTimestamp()
-      const extension = fileInfo?.originalExtension || 'txt'
-      downloadFile(decryptedData, `decrypted_${timestamp}.${extension}`)
-      toast.success('Decrypted file downloaded')
-    }
-  }, [decryptedData, fileInfo])
 
   const handleDownload = useCallback(() => {
-    if (encryptedData && fileInfo) {
-      const timestamp = generateTimestamp()
-      const nameWithoutExt = getFilenameWithoutExtension(fileInfo.name)
-      downloadFile(encryptedData, `${nameWithoutExt}_${timestamp}.enc`)
-      toast.success('Encrypted file downloaded successfully')
-    } else if (decryptedData && fileInfo) {
-      const timestamp = generateTimestamp()
-      const extension = fileInfo.originalExtension || 'bin'
-      downloadFile(decryptedData, `${timestamp}.${extension}`)
-      toast.success('Decrypted file downloaded successfully')
-    } else if (encryptedData && inputType === 'message') {
-      handleDownloadEncrypted()
-    } else if (decryptedData && inputType === 'message') {
-      handleDownloadDecrypted()
+    if (encryptedData) {
+      const filename = generateDownloadFilename(inputType, fileInfo, processMode)
+      downloadFile(encryptedData, filename)
+      toast.success(`${processMode === 'encrypt' ? 'Encrypted' : 'Decrypted'} ${inputType === 'file' ? 'file' : 'text'} downloaded successfully`)
     }
-  }, [encryptedData, decryptedData, fileInfo, inputType, handleDownloadEncrypted, handleDownloadDecrypted])
+  }, [encryptedData, inputType, fileInfo, processMode])
 
   const downloadFile = (data: Blob, filename: string) => {
     const url = URL.createObjectURL(data)
@@ -187,98 +123,65 @@ export default function Home() {
     URL.revokeObjectURL(url)
   }
 
-  const deriveKeyPair = (mnemonic: string): KeyPair => {
-    if (!bip39.validateMnemonic(mnemonic, wordlist)) {
-      throw new Error('Invalid mnemonic phrase')
-    }
-    const seed = bip39.mnemonicToSeedSync(mnemonic)
-    const masterNode = HDKey.fromMasterSeed(seed)
-    const key = masterNode.derive(DEFAULT_DERIVATION_PATH)
-    if (!key.privateKey || !key.publicKey) {
-      throw new Error('Failed to derive key pair')
-    }
-    return {
-      privateKey: Buffer.from(key.privateKey).toString('hex'),
-      publicKey: base58.encode(key.publicKey)
-    }
-  }
-
-  const isBase58String = (input: string): boolean => {
-    return /^[1-9A-HJ-NP-Za-km-z]+$/.test(input)
-  }
-
-  const isHexString = (input: string): boolean => {
-    return /^[0-9a-fA-F]+$/.test(input)
-  }
-
-  const isMnemonicPhrase = (input: string): boolean => {
-    return input.split(' ').length >= 12
-  }
-
-  const handleCopyText = async (message: string) => {
-    try {
-      await navigator.clipboard.writeText(message)
-      toast.success('Text copied to clipboard!')
-    } catch (error) {
-      console.error('Failed to copy message:', error)
-      toast.error('Failed to copy message')
+  const handleCopy = () => {
+    if (textResult) {
+      navigator.clipboard.writeText(textResult).then(() => {
+        toast.success('Text copied to clipboard!')
+      }).catch(() => {
+        toast.error('Failed to copy text')
+      })
     }
   }
 
   const clearState = () => {
     setKeyInput('')
-    setSelectedFile(null)
     setFileInfo(null)
-    setTextInput('')
-    setEncryptedText('')
     setEncryptedData(null)
-    setDecryptedText('')
-    setDecryptedData(null)
-    setIsDialogOpen(false)
+    setTextResult(null)
     setIsProcessing(false)
-    setProcessingProgress(0)
-    setProcessingStage('')
-    setInputType('message')
+    setSelectedFile(null)
+    setTextInput('')
   }
 
-  const processInput = async (mode: 'encrypt' | 'decrypt') => {
+  const processInput = async () => {
     if (inputType === 'file' && !selectedFile) {
-      toast.error('Please select a file by clicking "Select File" or dragging it')
+      toast.error('Please select a file')
       return
     }
-    if (inputType === 'message' && !textInput.trim()) {
-      toast.error('Please input a message for processing')
+    if (inputType === 'message' && !textInput) {
+      toast.error('Please enter text to process')
       return
     }
     if (!keyInput) {
-      toast.error(mode === 'decrypt' ? 'Please enter a private key or mnemonic phrase' : 'Please enter a public key')
+      toast.error(`Please enter a ${processMode === 'encrypt' ? 'public key' : 'private key or mnemonic'}`)
       return
     }
 
     setIsProcessing(true)
-    setProcessingProgress(0)
-    setProcessingStage('Initializing...')
+    setProgress(0)
 
     try {
       let publicKey: string | undefined
       let privateKey: string | undefined
+      const mode = processMode || 'encrypt'
+      const _keyInput = keyInput.trim()
 
       if (mode === 'encrypt') {
-        if (isBase58String(keyInput)) {
-          const validation = validateBase58PublicKey(keyInput)
+        if (isBase58String(_keyInput)) {
+          const validation = validateBase58PublicKey(_keyInput)
           if (!validation.isValid) {
             throw new Error(validation.error)
           }
-          publicKey = keyInput
+          publicKey = _keyInput
         } else {
           throw new Error('Invalid input. Please enter a valid Base58 public key')
         }
       } else {
-        if (isHexString(keyInput)) {
-          if (keyInput.length !== 64) {
+        if (isHexString(_keyInput)) {
+          if (_keyInput.length !== 64) {
             throw new Error('Invalid private key length. Must be 32 bytes (64 hex characters)')
           }
-          privateKey = keyInput
+          privateKey = _keyInput
         } else if (isMnemonicPhrase(keyInput)) {
           privateKey = deriveKeyPair(keyInput).privateKey
         } else {
@@ -297,23 +200,21 @@ export default function Home() {
         signatureValid?: boolean
       }>((resolve, reject) => {
         worker.onmessage = (e: MessageEvent) => {
-          const { data, error, progress, stage } = e.data
+          const { data, error, progress } = e.data
           if (error) {
             reject(new Error(error))
           } else if (progress !== undefined) {
-            setProcessingProgress(progress)
-            if (stage) {
-              setProcessingStage(stage)
-            }
+            setProgress(Math.round(progress))
           } else if (data) {
             resolve(data)
           }
         }
+
         worker.postMessage({
           mode,
           encryptionMode: 'pubk',
           file: inputType === 'file' ? selectedFile : undefined,
-          filename: inputType === 'file' ? selectedFile?.name : undefined,
+          filename: inputType === 'file' ? fileInfo?.name : undefined,
           text: inputType === 'message' ? textInput : undefined,
           publicKey,
           privateKey,
@@ -322,38 +223,28 @@ export default function Home() {
       })
 
       if (inputType === 'file') {
-        if (mode === 'encrypt') {
-          setEncryptedData(result.data)
-        } else {
-          setDecryptedData(result.data)
-          if (result.originalExtension) {
-            setFileInfo(prev => prev ? { ...prev, originalExtension: result.originalExtension } : null)
-          }
-          if (result.signatureValid !== undefined) {
-            toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
-          }
+        setEncryptedData(result.data)
+        if (mode === 'decrypt' && result.originalExtension) {
+          setFileInfo(prev => prev ? {
+            ...prev,
+            originalExtension: result.originalExtension
+          } : null)
+        }
+        if (result.signatureValid !== undefined) {
+          toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
         }
         toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
       } else {
-        if (mode === 'encrypt') {
-          setEncryptedText(result.base64 || '')
-          setEncryptedData(result.data)
-          setIsDialogOpen(true)
-          toast.success('Text encrypted successfully!')
-        } else {
-          setDecryptedText(result.base64 || '')
-          setDecryptedData(result.data)
-          setIsDialogOpen(true)
-          if (result.signatureValid !== undefined) {
-            toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
-          }
-          toast.success('Text decrypted successfully!')
+        setTextResult(result.base64 || '')
+        setEncryptedData(result.data)
+        if (mode === 'decrypt' && result.signatureValid !== undefined) {
+          toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
         }
+        toast.success(`Text ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully!`)
       }
 
       setTimeout(() => {
-        setProcessingProgress(0)
-        setProcessingStage('')
+        setProgress(0)
       }, 1000)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'An error occurred during processing')
@@ -364,328 +255,215 @@ export default function Home() {
 
   return (
     <>
-      <Card className="border-none bg-card/20 backdrop-blur-lg">
-        <CardContent className="px-4 space-y-6 sm:space-y-8">
-          <ModeSwitcher value={pathname === '/password' ? 'pwd' : 'puk'} />
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <Tabs defaultValue="encrypt" className="w-full" onValueChange={clearState}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="encrypt" className="flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                Encrypt
+      <div className="relative py-8 sm:py-12 md:py-16 z-[1] bg-[#f5f3f0] dark:bg-gray-900">
+        <Image
+          src="/MaskGroup.svg"
+          alt="Hero Background"
+          fill
+          className="w-full h-full object-contain sm:object-cover -z-10"
+        />
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+        <div className="flex justify-center items-center relative z-10 w-full max-w-[100vw] sm:max-w-3xl mx-auto px-4 sm:px-6">
+          <Tabs
+            defaultValue="file"
+            className="flex flex-col items-center w-full"
+            onValueChange={() => {
+              clearState()
+              setInputType(inputType === 'file' ? 'message' : 'file')
+            }}
+          >
+            <TabsList className="flex h-auto bg-white dark:bg-gray-800 p-1 rounded-t-lg justify-center">
+              <TabsTrigger
+                value="file"
+                className="flex-1 sm:flex-none px-4 sm:px-8 py-2 text-xs sm:text-sm font-medium text-[#00000099] dark:text-gray-300 data-[state=active]:text-white data-[state=active]:bg-blue-700 dark:data-[state=active]:bg-blue-600 transition-colors rounded-md cursor-pointer"
+              >
+                Upload
               </TabsTrigger>
-              <TabsTrigger value="decrypt" className="flex items-center gap-2">
-                <Unlock className="w-4 h-4" />
-                Decrypt
-              </TabsTrigger>
-              <TabsTrigger value="keys" className="flex items-center gap-2">
-                <Key className="w-4 h-4" />
-                Keys
+              <TabsTrigger
+                value="message"
+                className="flex-1 sm:flex-none px-4 sm:px-8 py-2 text-xs sm:text-sm font-medium text-[#00000099] dark:text-gray-300 data-[state=active]:text-white data-[state=active]:bg-blue-700 dark:data-[state=active]:bg-blue-600 transition-colors rounded-md cursor-pointer"
+              >
+                Paste Text
               </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="encrypt">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                    Public Key
-                  </Label>
-                  <Input
-                    type="text"
-                    value={keyInput}
-                    onChange={(e) => setKeyInput(e.target.value)}
-                    placeholder="Enter Base58 public key (approx. 44-45 characters)"
-                    className="font-mono text-sm h-[40px] flex-1 rounded-lg border-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400"
-                  />
-                </div>
-
-                <div className="space-y-6">
-                  {inputType === 'message' && (
-                    <div className="space-y-3">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Input Message or File
-                      </Label>
-                      <div className="relative group">
-                        <Textarea
-                          value={textInput}
-                          onChange={handleTextChange}
-                          onDragOver={handleDragOver}
-                          onDrop={handleFileDrop}
-                          placeholder="Type a message to encrypt or drag & drop a file..."
-                          className="min-h-[140px] max-h-[300px] font-mono text-sm break-all resize-none rounded-lg border-2 border-dashed transition-all duration-300 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 focus:bg-blue-50/30 dark:focus:bg-blue-900/20 pr-4 pb-14"
-                        />
-                        <div className="absolute bottom-3 left-3 right-3">
+            <TabsContent value="file" className="w-full bg-transparent mt-0">
+              <div className="w-full bg-transparent">
+                <div className="py-4 sm:py-6 space-y-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-4 sm:p-6">
+                    {fileInfo ? (
+                      <div className="p-3 sm:p-4 rounded-lg border-2 border-dashed border-blue-300 dark:border-blue-500 shadow-sm">
+                        <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 rounded-md bg-gray-100 dark:bg-gray-700">
+                          <div className="flex items-center flex-1 space-x-3 w-full">
+                            <Image
+                              src="/FolderFilled.svg"
+                              alt="Selected File"
+                              width={36}
+                              height={36}
+                              className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300"
+                            />
+                            <div className="flex flex-col flex-1 gap-1 sm:gap-2">
+                              <span className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px] sm:max-w-[300px]">
+                                {fileInfo.name}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {(fileInfo.size / 1024).toFixed(1)} KB
+                              </span>
+                            </div>
+                          </div>
                           <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={triggerFileInput}
-                            className="w-full flex items-center justify-center gap-2 h-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium"
+                            variant="secondary"
+                            className="mt-2 sm:mt-0 size-8 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 hover:bg-red-50 dark:hover:bg-red-900/50"
+                            onClick={clearState}
                           >
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Select File to Encrypt</span>
+                            <X className="w-5 h-5" />
                           </Button>
                         </div>
                       </div>
+                    ) : (
+                      <div
+                        className="flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-all py-8 sm:py-12"
+                        onClick={triggerFileInput}
+                      >
+                        <Image
+                          src="/Files.svg"
+                          alt="Upload File"
+                          width={36}
+                          height={36}
+                          className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300 mb-2 sm:mb-3"
+                        />
+                        <p className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 text-center">
+                          Drag & Drop Your File
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">or</p>
+                        <Button
+                          variant="outline"
+                          className="mt-2 px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50 cursor-pointer"
+                        >
+                          Select File
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="message" className="w-full bg-transparent mt-0">
+              <div className="w-full bg-transparent">
+                <div className="p-4 sm:p-6 space-y-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-4 sm:p-6">
+                    <Textarea
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="Paste or enter text to encrypt or decrypt"
+                      className="min-h-[120px] sm:min-h-[140px] max-h-[200px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            {(selectedFile || textInput) && (
+              <div className="flex flex-col items-center w-full max-w-[90vw] sm:max-w-2xl">
+                <div className="w-full sm:w-3/4 space-y-6 sm:space-y-8">
+                  {!encryptedData && (
+                    <div className="space-y-2">
+                      <Label className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        {processMode === 'encrypt' ? 'Public Key' : 'Private Key or Mnemonic'}
+                      </Label>
+                      <PasswordInput
+                        type="text"
+                        value={keyInput}
+                        onChange={(e) => setKeyInput(e.target.value)}
+                        placeholder={
+                          processMode === 'encrypt'
+                            ? 'Enter Base58 public key (approx. 44-45 characters)'
+                            : 'Enter private key or mnemonic phrase'
+                        }
+                        className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-2 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
+                      />
                     </div>
                   )}
-                </div>
-
-                {inputType === 'file' && fileInfo && (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Selected File
-                      </Label>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearFile}
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
-                      >
-                        <X className="w-4 h-4" />
-                        Clear
-                      </Button>
-                    </div>
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                      <FileInfoDisplay fileInfo={fileInfo} />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  {!(encryptedData || decryptedData) && (
+                  {!encryptedData && (
                     <Button
                       variant="default"
                       size="lg"
-                      disabled={(inputType === 'file' && !selectedFile) || (inputType === 'message' && !textInput.trim()) || !keyInput || isProcessing}
-                      onClick={() => processInput('encrypt')}
-                      className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-400/30 hover:shadow-blue-500/40"
+                      disabled={
+                        (inputType === 'file' && !selectedFile) ||
+                        (inputType === 'message' && !textInput) ||
+                        !keyInput ||
+                        isProcessing
+                      }
+                      onClick={processInput}
+                      className={cn(
+                        'w-full text-white rounded-md relative overflow-hidden cursor-pointer h-10 text-sm sm:text-base',
+                        processMode === 'encrypt'
+                          ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'
+                          : 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800'
+                      )}
                     >
-                      <Lock className="w-5 h-5" />
-                      Encrypt
+                      <div
+                        className={cn(
+                          'absolute top-0 left-0 h-full transition-all duration-300',
+                          processMode === 'encrypt' ? 'bg-blue-400 dark:bg-blue-600' : 'bg-green-400 dark:bg-green-600'
+                        )}
+                        style={{ width: `${progress}%` }}
+                      />
+                      <span className="relative z-10">
+                        {processMode === 'encrypt' ? 'Encrypt' : 'Decrypt'}
+                        {isProcessing && ` ${progress}%`}
+                      </span>
                     </Button>
                   )}
-                  {(encryptedData || decryptedData) && (
-                    <>
+                  {encryptedData && (
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                       <Button
                         variant="default"
                         size="lg"
                         onClick={clearState}
-                        className="flex-1 flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-md bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-400/30 hover:shadow-orange-500/40"
+                        className="w-full sm:flex-1 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 text-black dark:text-gray-200 rounded-md cursor-pointer h-10 text-sm sm:text-base"
                       >
-                        <RefreshCw className="w-5 h-5" />
                         Reset
+                        <RefreshCw className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
                       </Button>
+                      {inputType === 'message' && (
+                        <Button
+                          variant="default"
+                          size="lg"
+                          onClick={handleCopy}
+                          className="w-full sm:flex-1 bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-800 text-white rounded-md cursor-pointer h-10 text-sm sm:text-base"
+                        >
+                          Copy
+                          <Copy className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                        </Button>
+                      )}
                       <Button
                         variant="default"
                         size="lg"
                         disabled={isProcessing}
                         onClick={handleDownload}
-                        className="flex-1 flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-md bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
+                        className={cn(
+                          'w-full text-white rounded-md cursor-pointer h-10 text-sm sm:text-base',
+                          inputType === 'message' ? 'sm:flex-1' : 'sm:flex-2',
+                          'bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-800'
+                        )}
                       >
-                        <Download className="w-5 h-5" />
                         Download
+                        <Download className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
                       </Button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="decrypt">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                    Private Key or Mnemonic
-                  </Label>
-                  <Input
-                    type="text"
-                    value={keyInput}
-                    onChange={(e) => setKeyInput(e.target.value)}
-                    placeholder="Enter private key (64 hex) or mnemonic phrase"
-                    className="font-mono text-sm h-[40px] flex-1 rounded-lg border-2 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400"
-                  />
-                </div>
-
-                <div className="space-y-6">
-                  {inputType === 'message' && (
-                    <div className="space-y-3">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Input Message or File
-                      </Label>
-                      <div className="relative group">
-                        <Textarea
-                          value={textInput}
-                          onChange={handleTextChange}
-                          onDragOver={handleDragOver}
-                          onDrop={handleFileDrop}
-                          placeholder="Paste encrypted text here or drag & drop an encrypted file..."
-                          className="min-h-[140px] max-h-[300px] font-mono text-sm break-all resize-none rounded-lg border-2 border-dashed transition-all duration-300 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 hover:bg-blue-50/20 dark:hover:bg-blue-900/10 focus:bg-blue-50/30 dark:focus:bg-blue-900/20 pr-4 pb-14"
-                        />
-                        <div className="absolute bottom-3 left-3 right-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={triggerFileInput}
-                            className="w-full flex items-center justify-center gap-2 h-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md text-xs font-medium"
-                          >
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>Select Encrypted File</span>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {inputType === 'file' && fileInfo && (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                        Selected File
-                      </Label>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearFile}
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
-                      >
-                        <X className="w-4 h-4" />
-                        Clear
-                      </Button>
-                    </div>
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                      <FileInfoDisplay fileInfo={fileInfo} isDecryptMode={true} />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  {!(encryptedData || decryptedData) && (
-                    <Button
-                      variant="default"
-                      size="lg"
-                      disabled={(inputType === 'file' && !selectedFile) || (inputType === 'message' && !textInput.trim()) || !keyInput || isProcessing}
-                      onClick={() => processInput('decrypt')}
-                      className="flex-1 text-white transition-all duration-300 shadow-md disabled:shadow-none bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
-                    >
-                      <Unlock className="w-5 h-5" />
-                      Decrypt
-                    </Button>
-                  )}
-                  {(encryptedData || decryptedData) && (
-                    <>
-                      <Button
-                        variant="default"
-                        size="lg"
-                        onClick={clearState}
-                        className="flex-1 flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-md bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-400/30 hover:shadow-orange-500/40"
-                      >
-                        <RefreshCw className="w-5 h-5" />
-                        Reset
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="lg"
-                        disabled={isProcessing}
-                        onClick={handleDownload}
-                        className="flex-1 flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-md bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-green-400/30 hover:shadow-green-500/40"
-                      >
-                        <Download className="w-5 h-5" />
-                        Download
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-            <TabsContent value="keys">
-              <div className="space-y-4">
-                <Label className="text-sm sm:text-base font-semibold text-gray-700 dark:text-gray-300">
-                  Key Management
-                </Label>
-                <p className="text-gray-600 dark:text-gray-400">Key generation and management features will be available soon.</p>
-              </div>
-            </TabsContent>
+            )}
           </Tabs>
+        </div>
+      </div>
 
-          <ProgressIndicator
-            isProcessing={isProcessing}
-            processingStage={processingStage}
-            processingProgress={processingProgress}
-          />
-          <FeaturesSection />
-        </CardContent>
-      </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col bg-card/20 backdrop-blur-lg rounded-xl sm:rounded-2xl border-none shadow-lg p-4 sm:p-6">
-          <DialogHeader className="shrink-0 space-y-1 sm:space-y-2">
-            <DialogTitle className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200">
-              {isProcessing ? 'Processing...' : encryptedText ? 'Encrypted Text' : 'Decrypted Text'}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
-              {encryptedText ? 'Your message has been encrypted successfully' : 'Your message has been decrypted successfully'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto py-1 sm:py-2 space-y-3 sm:space-y-4">
-            <div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="content" className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {encryptedText ? 'Encrypted Content' : 'Decrypted Content'}
-                </Label>
-                <div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
-                    onClick={encryptedText ? handleDownloadEncrypted : handleDownloadDecrypted}
-                    disabled={!encryptedData && !decryptedData}
-                  >
-                    <Download className="h-3 w-3" />
-                    <span className="hidden sm:inline">Download</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs"
-                    onClick={() => handleCopyText(encryptedText || decryptedText)}
-                  >
-                    <Clipboard className="h-3 w-3" />
-                    <span className="hidden sm:inline">Copy content</span>
-                  </Button>
-                </div>
-              </div>
-              <Textarea
-                id="content"
-                value={encryptedText || decryptedText}
-                readOnly
-                className="font-mono text-xs sm:text-sm mt-1 sm:mt-1.5 min-h-[100px] sm:min-h-[120px] max-h-[300px] overflow-y-auto bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
-              />
-            </div>
-          </div>
-          <DialogFooter className="shrink-0 border-t pt-3 sm:pt-4 mt-1 sm:mt-2">
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-between w-full items-center gap-2 sm:gap-0">
-              <div className="text-xs text-gray-500 dark:text-gray-400 w-full sm:w-auto text-center sm:text-left">
-                <span>Share this {encryptedText ? 'encrypted' : 'decrypted'} message securely</span>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                className="w-full sm:w-auto h-9 sm:h-10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-              >
-                Close
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <HowItWorksSection />
     </>
   )
 }
