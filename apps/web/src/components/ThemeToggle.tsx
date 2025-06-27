@@ -12,7 +12,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      className='cursor-pointer'
+      className="cursor-pointer"
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       aria-label="ThemeToggle"
     >

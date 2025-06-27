@@ -1,6 +1,6 @@
 'use client'
 
-import { CircleHelp, Settings, Key, Shield } from 'lucide-react'
+import { CircleHelp, Settings, Key, Shield, Lock } from 'lucide-react'
 import { useCallback } from 'react'
 
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -12,7 +12,8 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAppState, ENCRYPTION_MODES } from '@/contexts/AppStateContext'
@@ -102,19 +103,19 @@ export default function Header() {
   ]
 
   return (
-    <header className="w-full max-w-6xl mb-8 md:mb-12 z-0">
-      <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
-        <div className="flex-1 text-center space-y-4 sm:space-y-6">
-          <h1 className="text-3xl md:text-4xl flex items-center justify-center">SecureVault</h1>
-          <h3 className="text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium">
-            ECIES File & Message Encryption Tool
-          </h3>
+    <header className="relative w-full py-8 z-10 bg-[#0052D9] text-white overflow-hidden">
+      <Lock className="hidden md:block absolute size-34 top-1/3 -left-12 text-[#4c85e4]" />
+      <div className="relative max-w-6xl mx-auto flex flex-col md:flex-row items-center md:justify-between gap-4 p-4">
+        <div className="flex-1 text-center space-y-2">
+          <h1 className="text-3xl md:text-4xl font-bold flex items-center justify-center">Secure Vault</h1>
+          <h3 className="text-sm md:text-base font-medium">ECIES File & Message Encryption Tool</h3>
         </div>
-        <div className="flex items-center gap-2 justify-center md:justify-end w-full md:w-auto">
+
+        <div className="flex items-center gap-2 justify-center md:justify-end w-full md:w-auto md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="cursor-pointer">
-                <CircleHelp className='size-5' />
+                <CircleHelp className="size-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -130,22 +131,25 @@ export default function Header() {
                 <Settings className="size-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {subMenus.map(({ triggerLabel, triggerIcon: TriggerIcon, items }) => (
-                <DropdownMenuSub key={triggerLabel}>
-                  <DropdownMenuSubTrigger>
-                    <TriggerIcon className="mr-2 h-4 w-4" />
-                    <span>{triggerLabel}</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {items.map(item =>
-                      renderMenuItem(
-                        item,
-                        triggerLabel === '加密模式' && item.action === selectedEncryptionMode
-                      )
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+            <DropdownMenuContent align="end" className="bg-white text-black">
+              {subMenus.map(({ triggerLabel, triggerIcon: TriggerIcon, items }, index) => (
+                <div key={triggerLabel}>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="cursor-pointer">
+                      <TriggerIcon className="mr-2 h-4 w-4 text-black" />
+                      <span>{triggerLabel}</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {items.map(item =>
+                        renderMenuItem(
+                          item,
+                          triggerLabel === '加密模式' && item.action === selectedEncryptionMode
+                        )
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  {index < subMenus.length - 1 && <DropdownMenuSeparator />}
+                </div>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>

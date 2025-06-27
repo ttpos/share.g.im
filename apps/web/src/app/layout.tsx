@@ -65,10 +65,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <AppStateProvider>
             <main className="flex flex-col min-h-screen bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-white">
-              <div className="max-w-xl mx-auto px-4 py-12 flex flex-col items-center flex-1">
+              <div className="flex flex-col items-center flex-1">
                 <Header />
 
-                <div className="w-full max-w-[520px] sm:min-w-[520px]">
+                {/* <div className="w-full max-w-[520px] sm:min-w-[520px]"> */}
+                <div className="w-full">
                   {children}
                 </div>
               </div>
