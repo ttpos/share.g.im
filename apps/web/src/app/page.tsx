@@ -31,7 +31,6 @@ export default function HomePage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processMode, setProcessMode] = useState<'encrypt' | 'decrypt'>('encrypt')
-  // const [fileMetadata, setFileMetadata] = useState<Awaited<ReturnType<typeof detect>> | null>(null)
   const workerRef = useRef<Worker | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -39,7 +38,6 @@ export default function HomePage() {
     workerRef.current = new Worker(new URL('../workers/cryptoWorker.ts', import.meta.url))
     return () => workerRef.current?.terminate()
   }, [])
-
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -65,7 +63,6 @@ export default function HomePage() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  // Trigger file input click
   const triggerFileInput = () => {
     fileInputRef.current?.click()
   }
@@ -84,14 +81,6 @@ export default function HomePage() {
         setTextInput('')
         setInputType('file')
         const metadata = await detect(file)
-
-        // if (metadata?.encryptionType && metadata?.encryptionType !== 'pubk' && fileMetadata?.encryptionType !== 'unencrypted') {
-        //   toast.error(`This file is ${metadata.encryptionType} encrypted. Please switch to the correct encryption mode.`)
-        //   clearState()
-        //   return
-        // } else {
-        //   setFileInfo(null)
-        // }
 
         if (metadata.encryptionType === 'pubk') {
           if (inputType !== 'file') {
@@ -266,12 +255,12 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="relative py-16 z-[1]">
+      <div className="relative py-8 sm:py-12 md:py-16 z-[1] bg-[#f5f3f0] dark:bg-gray-900">
         <Image
           src="/MaskGroup.svg"
           alt="Hero Background"
           fill
-          className="w-full h-full object-cover md:object-fill -z-10"
+          className="w-full h-full object-contain sm:object-cover -z-10"
         />
         <input
           type="file"
@@ -279,72 +268,81 @@ export default function HomePage() {
           className="hidden"
           onChange={handleFileSelect}
         />
-        <div className="flex justify-center items-center relative z-10 min-w-3xl mx-auto px-4">
-          <Tabs defaultValue="file" className="flex items-center w-full max-w-3xl" onValueChange={clearState}>
-            <TabsList className="flex h-auto bg-white p-1 rounded-t-lg">
+        <div className="flex justify-center items-center relative z-10 w-full max-w-[100vw] sm:max-w-3xl mx-auto px-4 sm:px-6">
+          <Tabs
+            defaultValue="file"
+            className="flex flex-col items-center w-full"
+            onValueChange={() => {
+              clearState()
+              setInputType(inputType === 'file' ? 'message' : 'file')
+            }}
+          >
+            <TabsList className="flex h-auto bg-white dark:bg-gray-800 p-1 rounded-t-lg justify-center">
               <TabsTrigger
                 value="file"
-                className="px-8 py-2 text-sm font-medium text-[#00000099] data-[state=active]:text-white data-[state=active]:bg-blue-700 transition-colors rounded-md cursor-pointer"
+                className="flex-1 sm:flex-none px-4 sm:px-8 py-2 text-xs sm:text-sm font-medium text-[#00000099] dark:text-gray-300 data-[state=active]:text-white data-[state=active]:bg-blue-700 dark:data-[state=active]:bg-blue-600 transition-colors rounded-md cursor-pointer"
               >
                 Upload
               </TabsTrigger>
               <TabsTrigger
                 value="message"
-                className="px-8 py-2 text-sm font-medium text-[#00000099] data-[state=active]:text-white data-[state=active]:bg-blue-700 transition-colors rounded-md cursor-pointer"
+                className="flex-1 sm:flex-none px-4 sm:px-8 py-2 text-xs sm:text-sm font-medium text-[#00000099] dark:text-gray-300 data-[state=active]:text-white data-[state=active]:bg-blue-700 dark:data-[state=active]:bg-blue-600 transition-colors rounded-md cursor-pointer"
               >
                 Paste Text
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="file" className="w-full bg-transparent">
-              <div className="w-full bg-transparent ">
-                <div className="p-6 space-y-4">
-                  <div className='bg-white rounded-xl backdrop-blur-sm border border-gray-200/50 p-6'>
+            <TabsContent value="file" className="w-full bg-transparent mt-0">
+              <div className="w-full bg-transparent">
+                <div className="py-4 sm:py-6 space-y-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-4 sm:p-6">
                     {fileInfo ? (
-                      <div className="p-4 rounded-lg border-2 border-dashed border-blue-300 shadow-sm">
-                        <div className='flex items-center justify-between p-4 rounded-md bg-gray-100'>
-                          <div className="flex items-center flex-1 space-x-3">
+                      <div className="p-3 sm:p-4 rounded-lg border-2 border-dashed border-blue-300 dark:border-blue-500 shadow-sm">
+                        <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 rounded-md bg-gray-100 dark:bg-gray-700">
+                          <div className="flex items-center flex-1 space-x-3 w-full">
                             <Image
                               src="/FolderFilled.svg"
-                              alt="Files"
-                              width={42}
-                              height={42}
-                              className="w-12 h-12 text-gray-400"
+                              alt="Selected File"
+                              width={36}
+                              height={36}
+                              className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300"
                             />
-                            <div className="flex flex-col flex-1 gap-2">
-                              <span className="text-sm font-medium text-gray-800 truncate max-w-[300px]">
+                            <div className="flex flex-col flex-1 gap-1 sm:gap-2">
+                              <span className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px] sm:max-w-[300px]">
                                 {fileInfo.name}
                               </span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
                                 {(fileInfo.size / 1024).toFixed(1)} KB
                               </span>
                             </div>
                           </div>
                           <Button
                             variant="secondary"
-                            className="size-8 text-gray-600 hover:text-red-500 transition-colors p-1 hover:bg-red-50"
+                            className="mt-2 sm:mt-0 size-8 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 hover:bg-red-50 dark:hover:bg-red-900/50"
                             onClick={clearState}
                           >
-                            <X />
+                            <X className="w-5 h-5" />
                           </Button>
                         </div>
                       </div>
                     ) : (
                       <div
-                        className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-blue-400 transition-all py-12"
+                        className="flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-all py-8 sm:py-12"
                         onClick={triggerFileInput}
                       >
                         <Image
                           src="/Files.svg"
-                          alt="Files"
-                          width={48}
-                          height={48}
-                          className="w-12 h-12 text-gray-400 mb-3"
+                          alt="Upload File"
+                          width={36}
+                          height={36}
+                          className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300 mb-2 sm:mb-3"
                         />
-                        <p className='text-sm font-medium text-gray-700'>Drag & Drop Your File</p>
-                        <p className='text- text-gray-400'>or</p>
+                        <p className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 text-center">
+                          Drag & Drop Your File
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">or</p>
                         <Button
                           variant="outline"
-                          className="mt-2 px-4 py-2 text-sm font-medium text-blue-600 border-blue-600 hover:bg-blue-50 cursor-pointer"
+                          className="mt-2 px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50 cursor-pointer"
                         >
                           Select File
                         </Button>
@@ -354,110 +352,113 @@ export default function HomePage() {
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="message" className="w-full bg-transparent">
-              <div className="w-full bg-transparent ">
-                <div className="p-6 space-y-4">
-                  <div className='bg-white rounded-xl backdrop-blur-sm border border-gray-200/50 p-6'>
+            <TabsContent value="message" className="w-full bg-transparent mt-0">
+              <div className="w-full bg-transparent">
+                <div className="p-4 sm:p-6 space-y-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-4 sm:p-6">
                     <Textarea
                       value={textInput}
                       onChange={(e) => setTextInput(e.target.value)}
                       placeholder="Paste or enter text to encrypt or decrypt"
-                      className="min-h-[140px] max-h-[300px] font-mono text-sm break-all resize-none rounded-md border border-gray-300 hover:border-blue-400 focus:border-blue-500 pr-4 pb-14"
+                      className="min-h-[120px] sm:min-h-[140px] max-h-[200px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
                     />
                   </div>
                 </div>
               </div>
             </TabsContent>
-            {
-              (selectedFile || textInput) && (
-                <div className='flex-col gap-2 flex items-center w-full max-w-2xl'>
-                  <div className='w-3/4 space-y-8'>
-                    {
-                      !encryptedData && (
-                        <div className="space-y-2">
-                          <Label className="text-sm font-semibold text-gray-700">Public Key</Label>
-                          <PasswordInput
-                            type="text"
-                            value={keyInput}
-                            onChange={(e) => setKeyInput(e.target.value)}
-                            placeholder="Enter Base58 public key(approx.44-45 characters)"
-                            className="font-mono text-sm h-[42px] flex-1 rounded-lg border-2 bg-white border-gray-300 focus:border-blue-500"
-                          />
-                        </div>
-                      )
-                    }
-                    {!encryptedData && (
+            {(selectedFile || textInput) && (
+              <div className="flex flex-col items-center w-full max-w-[90vw] sm:max-w-2xl">
+                <div className="w-full sm:w-3/4 space-y-6 sm:space-y-8">
+                  {!encryptedData && (
+                    <div className="space-y-2">
+                      <Label className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        {processMode === 'encrypt' ? 'Public Key' : 'Private Key or Mnemonic'}
+                      </Label>
+                      <PasswordInput
+                        type="text"
+                        value={keyInput}
+                        onChange={(e) => setKeyInput(e.target.value)}
+                        placeholder={
+                          processMode === 'encrypt'
+                            ? 'Enter Base58 public key (approx. 44-45 characters)'
+                            : 'Enter private key or mnemonic phrase'
+                        }
+                        className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-2 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
+                      />
+                    </div>
+                  )}
+                  {!encryptedData && (
+                    <Button
+                      variant="default"
+                      size="lg"
+                      disabled={
+                        (inputType === 'file' && !selectedFile) ||
+                        (inputType === 'message' && !textInput) ||
+                        !keyInput ||
+                        isProcessing
+                      }
+                      onClick={processInput}
+                      className={cn(
+                        'w-full text-white rounded-md relative overflow-hidden cursor-pointer h-10 text-sm sm:text-base',
+                        processMode === 'encrypt'
+                          ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'
+                          : 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800'
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'absolute top-0 left-0 h-full transition-all duration-300',
+                          processMode === 'encrypt' ? 'bg-blue-400 dark:bg-blue-600' : 'bg-green-400 dark:bg-green-600'
+                        )}
+                        style={{ width: `${progress}%` }}
+                      />
+                      <span className="relative z-10">
+                        {processMode === 'encrypt' ? 'Encrypt' : 'Decrypt'}
+                        {isProcessing && ` ${progress}%`}
+                      </span>
+                    </Button>
+                  )}
+                  {encryptedData && (
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                       <Button
                         variant="default"
                         size="lg"
-                        disabled={
-                          (inputType === 'file' && !selectedFile) ||
-                          (inputType === 'message' && !textInput) ||
-                          !keyInput ||
-                          isProcessing
-                        }
-                        onClick={processInput}
+                        onClick={clearState}
+                        className="w-full sm:flex-1 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600 text-black dark:text-gray-200 rounded-md cursor-pointer h-10 text-sm sm:text-base"
+                      >
+                        Reset
+                        <RefreshCw className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                      </Button>
+                      {inputType === 'message' && (
+                        <Button
+                          variant="default"
+                          size="lg"
+                          onClick={handleCopy}
+                          className="w-full sm:flex-1 bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-800 text-white rounded-md cursor-pointer h-10 text-sm sm:text-base"
+                        >
+                          Copy
+                          <Copy className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="default"
+                        size="lg"
+                        disabled={isProcessing}
+                        onClick={handleDownload}
                         className={cn(
-                          'w-full flex-1 text-white rounded-md relative overflow-hidden cursor-pointer',
-                          processMode === 'encrypt'
-                            ? 'bg-blue-600 hover:bg-blue-700'
-                            : 'bg-green-600 hover:bg-green-700'
+                          'w-full text-white rounded-md cursor-pointer h-10 text-sm sm:text-base',
+                          inputType === 'message' ? 'sm:flex-1' : 'sm:flex-2',
+                          'bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-800'
                         )}
                       >
-                        <div
-                          className={cn(
-                            'absolute top-0 left-0 h-full transition-all duration-300',
-                            processMode === 'encrypt' ? 'bg-blue-400' : 'bg-green-400'
-                          )}
-                          style={{ width: `${progress}%` }}
-                        />
-                        <span className="relative z-10">
-                          {processMode === 'encrypt' ? 'Encrypt' : 'Decrypt'}
-                          {isProcessing && ` ${progress}%`}
-                        </span>
+                        Download
+                        <Download className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
                       </Button>
-                    )}
-                    {encryptedData && (
-                      <div className='flex gap-4'>
-                        <Button
-                          variant="default"
-                          size="lg"
-                          onClick={clearState}
-                          className="flex-1 bg-gray-300 hover:bg-gray-400 text-black rounded-md cursor-pointer"
-                        >
-                          Reset
-                          <RefreshCw className="w-5 h-5 mr-2" />
-                        </Button>
-                        {inputType === 'message' && (
-                          <Button
-                            variant="default"
-                            size="lg"
-                            onClick={handleCopy}
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-md cursor-pointer"
-                          >
-                            Copy
-                            <Copy className="w-5 h-5 mr-2" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="default"
-                          size="lg"
-                          disabled={isProcessing}
-                          onClick={handleDownload}
-                          className={cn(
-                            'bg-green-600 hover:bg-green-700 text-white rounded-md cursor-pointer',
-                            inputType === 'message' ? 'flex-1' : 'flex-2'
-                          )}
-                        >
-                          Download
-                          <Download className="w-5 h-5 mr-2" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              )
-            }
+              </div>
+            )}
           </Tabs>
         </div>
       </div>
