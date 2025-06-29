@@ -1,11 +1,12 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+// Type definitions
 type ContentKey =
   | 'Getting Started'
   | 'Usage Scenarios'
@@ -14,21 +15,24 @@ type ContentKey =
   | 'Data Security'
   | 'Privacy'
 
-type ContentItem = {
+interface BaseContentItem {
   icon: string
   title?: string
   description?: string
-  question?: string
-  answer?: string
-  sub_icon?: string
 }
 
-type Content = {
-  // eslint-disable-next-line no-unused-vars
-  [key in ContentKey]: ContentItem[]
+interface FAQContentItem extends BaseContentItem {
+  question: string
+  answer: string
+  sub_icon: string
 }
 
-const tabs: ContentKey[] = [
+type ContentItem = BaseContentItem | FAQContentItem
+
+type Content = Record<ContentKey, ContentItem[]>
+
+// Constants
+const TABS: ContentKey[] = [
   'Getting Started',
   'Usage Scenarios',
   'Features',
@@ -37,7 +41,9 @@ const tabs: ContentKey[] = [
   'Privacy'
 ]
 
-const content: Content = {
+const GRID_LAYOUT_TABS = ['Getting Started', 'Usage Scenarios', 'Data Security', 'Privacy']
+
+const CONTENT: Content = {
   'Getting Started': [
     {
       icon: '/KeyCreation.svg',
@@ -163,104 +169,147 @@ const content: Content = {
   ]
 }
 
+// Helper function to check if item is FAQ type
+const isFAQItem = (item: ContentItem): item is FAQContentItem => {
+  return 'question' in item && 'answer' in item && 'sub_icon' in item
+}
+
+// Component for rendering individual content items
+const ContentCard = ({ item, index, isGridLayout }: { 
+  item: ContentItem
+  index: number
+  isGridLayout: boolean 
+}) => {
+  if (isGridLayout) {
+    return (
+      <div 
+        className="flex items-center flex-col bg-gray-100 dark:bg-gray-700 rounded-lg p-3 sm:p-4 transform transition-all duration-500 ease-out hover:scale-105 hover:shadow-lg hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-bottom-8 fade-in"
+        style={{
+          animationDelay: `${index * 150}ms`
+        }}
+      >
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 dark:bg-blue-900/50 rounded-lg flex items-center justify-center mb-3 transition-transform duration-300 hover:rotate-12">
+          <Image
+            src={item.icon}
+            alt={item.title || 'Icon'}
+            width={36}
+            height={36}
+            className="w-9 h-9 sm:w-12 sm:h-12"
+          />
+        </div>
+        <h3 className="text-base sm:text-lg font-semibold text-blue-700 dark:text-blue-300 mb-2 sm:mb-3 text-center transition-colors duration-300">
+          {item.title}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm leading-relaxed text-center transition-colors duration-300">
+          {item.description}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center space-x-3 sm:space-x-4 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg transform transition-all duration-500 ease-out hover:scale-105 hover:shadow-md hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-left-8 fade-in"
+      style={{
+        animationDelay: `${index * 150}ms`
+      }}
+    >
+      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 dark:bg-blue-900/50 rounded-lg flex items-center justify-center transition-transform duration-300 hover:rotate-12">
+        <Image
+          src={item.icon}
+          alt={item.title || 'Icon'}
+          width={36}
+          height={36}
+          className="w-9 h-9 sm:w-12 sm:h-12"
+        />
+      </div>
+      <div className="flex-1">
+        <h3 className="text-base sm:text-lg font-semibold text-blue-700 dark:text-blue-300 mb-1 sm:mb-2 transition-colors duration-300">
+          {item.title}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm leading-relaxed transition-colors duration-300">
+          {item.description}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// Component for rendering FAQ items
+const FAQCard = ({ item, index }: { item: FAQContentItem; index: number }) => (
+  <div 
+    className="flex flex-col gap-2 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg transform transition-all duration-500 ease-out hover:scale-105 hover:shadow-md hover:bg-gray-200 dark:hover:bg-gray-600 animate-in fade-in slide-in-from-bottom-4"
+    style={{
+      animationDelay: `${index * 150}ms`
+    }}
+  >
+    <div className="flex items-center space-x-2 sm:space-x-3">
+      <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Image
+          src={item.icon}
+          alt="Question Icon"
+          width={16}
+          height={16}
+          className="w-4 h-4 sm:w-5 sm:h-5"
+        />
+      </div>
+      <h3 className="text-base sm:text-lg font-semibold text-blue-700 dark:text-blue-300">
+        {item.question}
+      </h3>
+    </div>
+    <div className="flex items-start space-x-2 sm:space-x-3">
+      <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Image
+          src={item.sub_icon}
+          alt="Answer Icon"
+          width={16}
+          height={16}
+          className="w-4 h-4 sm:w-5 sm:h-5"
+        />
+      </div>
+      <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm leading-relaxed">
+        {item.answer}
+      </p>
+    </div>
+  </div>
+)
+
 export default function HowItWorksSection() {
   const [activeTab, setActiveTab] = useState<ContentKey>('Getting Started')
 
+  const currentContent = useMemo(() => CONTENT[activeTab], [activeTab])
+  const isGridLayout = useMemo(() => GRID_LAYOUT_TABS.includes(activeTab), [activeTab])
+  const isFAQTab = useMemo(() => activeTab === 'FAQ', [activeTab])
+
   const renderContent = () => {
-    const currentContent = content[activeTab]
-
-    if (['Getting Started', 'Usage Scenarios', 'Data Security', 'Privacy'].includes(activeTab)) {
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-4 sm:p-6">
-          {currentContent.map((item, index) => (
-            <div key={index} className="flex items-center flex-col bg-gray-100 dark:bg-gray-700 rounded-lg p-3 sm:p-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <Image
-                  src={item.icon}
-                  alt={item.title || 'Icon'}
-                  width={36}
-                  height={36}
-                  className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300"
-                />
-              </div>
-              <h3 className="text-base sm:text-lg font-semibold text-blue-700 dark:text-blue-300 mb-2 sm:mb-3 text-center">
-                {item.title}
-              </h3>
-              <p className="text-[#00000099] dark:text-gray-300 text-xs sm:text-sm leading-relaxed text-center">
-                {item.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      )
-    }
-
-    if (activeTab === 'Features') {
+    if (isFAQTab) {
       return (
         <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {currentContent.map((item, index) => (
-            <div key={index} className="flex items-center space-x-3 sm:space-x-4 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
-                <Image
-                  src={item.icon}
-                  alt={item.title || 'Icon'}
-                  width={36}
-                  height={36}
-                  className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300"
-                />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-base sm:text-lg font-semibold text-blue-700 dark:text-blue-300 mb-1 sm:mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-[#00000099] dark:text-gray-300 text-xs sm:text-sm leading-relaxed">
-                  {item.description}
-                </p>
-              </div>
-            </div>
-          ))}
+          {currentContent.map((item, index) => {
+            if (isFAQItem(item)) {
+              return <FAQCard key={index} item={item} index={index} />
+            }
+            return null
+          })}
         </div>
       )
     }
 
-    if (activeTab === 'FAQ') {
-      return (
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {currentContent.map((item, index) => (
-            <div key={index} className="flex flex-col gap-2 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Image
-                    src={item.icon}
-                    alt={item.question || 'Question Icon'}
-                    width={16}
-                    height={16}
-                    className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 dark:text-gray-300"
-                  />
-                </div>
-                <h3 className="text-base sm:text-lg font-semibold text-blue-700 dark:text-blue-300">
-                  {item.question}
-                </h3>
-              </div>
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Image
-                    src={item.sub_icon!}
-                    alt={item.answer || 'Answer Icon'}
-                    width={16}
-                    height={16}
-                    className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 dark:text-gray-300"
-                  />
-                </div>
-                <p className="text-[#00000099] dark:text-gray-300 text-xs sm:text-sm leading-relaxed">
-                  {item.answer}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )
-    }
+    const containerClass = isGridLayout
+      ? 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-4 sm:p-6'
+      : 'bg-gray-50 dark:bg-gray-800 rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-6'
+
+    return (
+      <div className={containerClass}>
+        {currentContent.map((item, index) => (
+          <ContentCard 
+            key={index} 
+            item={item} 
+            index={index} 
+            isGridLayout={isGridLayout} 
+          />
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -269,8 +318,9 @@ export default function HowItWorksSection() {
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-gray-200 mb-8 sm:mb-12">
           How It Works
         </h2>
+        
         <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8 sm:mb-12">
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <Button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -286,6 +336,7 @@ export default function HowItWorksSection() {
             </Button>
           ))}
         </div>
+        
         {renderContent()}
       </div>
     </section>
