@@ -1,6 +1,14 @@
 'use client'
 
-import { deriveKeyPair, detect, isBase58String, isHexString, isMnemonicPhrase, validateBase58PublicKey } from '@ttpos/share-utils'
+import { 
+  deriveKeyPair,
+  detect,
+  formatFileSize,
+  isBase58String,
+  isHexString,
+  isMnemonicPhrase,
+  validateBase58PublicKey
+} from '@ttpos/share-utils'
 import { Download, RefreshCw, X, Copy } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useRef, useEffect, useCallback } from 'react'
@@ -31,6 +39,7 @@ export default function HomePage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processMode, setProcessMode] = useState<'encrypt' | 'decrypt'>('encrypt')
+  const [isDragOver, setIsDragOver] = useState(false)
   const workerRef = useRef<Worker | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -103,6 +112,72 @@ export default function HomePage() {
     }
   }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Only set isDragOver to false if we're leaving the drop zone completely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      if (files.length > 1) {
+        toast.error('Please select only one file at a time')
+        return
+      }
+      
+      const file = files[0]
+      try {
+        setSelectedFile(file)
+        setFileInfo({
+          name: file.name,
+          size: file.size,
+          type: file.type || 'Unknown',
+          encryptionMode: 'public-key'
+        })
+        setTextInput('')
+        setInputType('file')
+        const metadata = await detect(file)
+
+        if (metadata.encryptionType === 'pubk') {
+          if (inputType !== 'file') {
+            toast.info('Detected public key encrypted file, switching to Key Encryption mode')
+            setInputType('file')
+          }
+          setProcessMode(file.name.endsWith('.enc') ? 'decrypt' : 'encrypt')
+        } else if (metadata.encryptionType === 'signed') {
+          toast.error('Signed files are not supported yet')
+          clearState()
+          return
+        } else {
+          setProcessMode('encrypt')
+        }
+      } catch (error) {
+        console.error('File detection failed:', error)
+        toast.error('Failed to process file')
+        clearState()
+      }
+    }
+  }
+
   const handleDownload = useCallback(() => {
     if (encryptedData) {
       const filename = generateDownloadFilename(inputType, fileInfo, processMode)
@@ -141,6 +216,11 @@ export default function HomePage() {
     setIsProcessing(false)
     setSelectedFile(null)
     setTextInput('')
+    setIsDragOver(false)
+    // Reset file input value to fix the bug
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const processInput = async () => {
@@ -199,16 +279,20 @@ export default function HomePage() {
         originalExtension?: string
         signatureValid?: boolean
       }>((resolve, reject) => {
-        worker.onmessage = (e: MessageEvent) => {
+        const handleMessage = (e: MessageEvent) => {
           const { data, error, progress } = e.data
           if (error) {
             reject(new Error(error))
           } else if (progress !== undefined) {
             setProgress(Math.round(progress))
           } else if (data) {
+            // Clean up listener
+            worker.removeEventListener('message', handleMessage)
             resolve(data)
           }
         }
+        
+        worker.addEventListener('message', handleMessage)
 
         worker.postMessage({
           mode,
@@ -267,14 +351,16 @@ export default function HomePage() {
           ref={fileInputRef}
           className="hidden"
           onChange={handleFileSelect}
+          accept="*/*"
+          multiple={false}
         />
         <div className="flex justify-center items-center relative z-10 w-full max-w-[100vw] sm:max-w-3xl mx-auto px-4 sm:px-6">
           <Tabs
             defaultValue="file"
             className="flex flex-col items-center w-full"
-            onValueChange={() => {
+            onValueChange={(value) => {
               clearState()
-              setInputType(inputType === 'file' ? 'message' : 'file')
+              setInputType(value as 'file' | 'message')
             }}
           >
             <TabsList className="flex h-auto bg-white dark:bg-gray-800 p-1 rounded-t-lg justify-center">
@@ -296,7 +382,7 @@ export default function HomePage() {
                 <div className="py-4 sm:py-6 space-y-4">
                   <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-4 sm:p-6">
                     {fileInfo ? (
-                      <div className="p-3 sm:p-4 rounded-lg border-2 border-dashed border-blue-300 dark:border-blue-500 shadow-sm">
+                      <div className="p-3 sm:p-4 rounded-lg border-1 border-dashed border-blue-300 dark:border-blue-500 shadow-sm">
                         <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 rounded-md bg-gray-100 dark:bg-gray-700">
                           <div className="flex items-center flex-1 space-x-3 w-full">
                             <Image
@@ -311,7 +397,7 @@ export default function HomePage() {
                                 {fileInfo.name}
                               </span>
                               <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {(fileInfo.size / 1024).toFixed(1)} KB
+                                {formatFileSize(fileInfo.size)}
                               </span>
                             </div>
                           </div>
@@ -326,8 +412,17 @@ export default function HomePage() {
                       </div>
                     ) : (
                       <div
-                        className="flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-all py-8 sm:py-12"
+                        className={cn(
+                          'flex flex-col items-center justify-center p-4 sm:p-6 border-1 border-dashed rounded-md cursor-pointer transition-all py-8 sm:py-12',
+                          isDragOver 
+                            ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                            : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
+                        )}
                         onClick={triggerFileInput}
+                        onDragOver={handleDragOver}
+                        onDragEnter={handleDragEnter}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
                       >
                         <Image
                           src="/Files.svg"
@@ -336,8 +431,13 @@ export default function HomePage() {
                           height={36}
                           className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300 mb-2 sm:mb-3"
                         />
-                        <p className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 text-center">
-                          Drag & Drop Your File
+                        <p className={cn(
+                          'text-xs sm:text-sm font-medium text-center',
+                          isDragOver 
+                            ? 'text-blue-700 dark:text-blue-300' 
+                            : 'text-gray-700 dark:text-gray-200'
+                        )}>
+                          {isDragOver ? 'Drop your file here!' : 'Drag & Drop Your File'}
                         </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500">or</p>
                         <Button
@@ -383,7 +483,7 @@ export default function HomePage() {
                             ? 'Enter Base58 public key (approx. 44-45 characters)'
                             : 'Enter private key or mnemonic phrase'
                         }
-                        className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-2 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
+                        className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
                       />
                     </div>
                   )}
