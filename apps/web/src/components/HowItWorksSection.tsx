@@ -183,7 +183,7 @@ const ContentCard = ({ item, index, isGridLayout }: {
   if (isGridLayout) {
     return (
       <div 
-        className="flex items-center flex-col bg-gray-100 dark:bg-gray-700 rounded-lg p-3 sm:p-4 transform transition-all duration-500 ease-out hover:scale-105 hover:shadow-lg hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-bottom-8 fade-in"
+        className="flex items-center flex-col bg-gray-100 dark:bg-gray-700 rounded-lg p-3 sm:p-4 transform transition-all duration-500 ease-out hover:scale-105 hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-bottom-8 fade-in"
         style={{
           animationDelay: `${index * 150}ms`
         }}
@@ -208,7 +208,7 @@ const ContentCard = ({ item, index, isGridLayout }: {
   }
 
   return (
-    <div className="flex items-center space-x-3 sm:space-x-4 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg transform transition-all duration-500 ease-out hover:scale-105 hover:shadow-md hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-left-8 fade-in"
+    <div className="flex items-center space-x-3 sm:space-x-4 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg transform transition-all duration-500 ease-out hover:scale-105 hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-left-8 fade-in"
       style={{
         animationDelay: `${index * 150}ms`
       }}
@@ -237,7 +237,7 @@ const ContentCard = ({ item, index, isGridLayout }: {
 // Component for rendering FAQ items
 const FAQCard = ({ item, index }: { item: FAQContentItem; index: number }) => (
   <div 
-    className="flex flex-col gap-2 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg transform transition-all duration-500 ease-out hover:scale-105 hover:shadow-md hover:bg-gray-200 dark:hover:bg-gray-600 animate-in fade-in slide-in-from-bottom-4"
+    className="flex flex-col gap-2 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg transform transition-all duration-500 ease-out hover:scale-105 hover:bg-gray-200 dark:hover:bg-gray-600 animate-in fade-in slide-in-from-bottom-4"
     style={{
       animationDelay: `${index * 150}ms`
     }}
@@ -326,7 +326,7 @@ export default function HowItWorksSection() {
               onClick={() => setActiveTab(tab)}
               variant={activeTab === tab ? 'default' : 'outline'}
               className={cn(
-                'px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium transition-colors',
+                'px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-none shadow-none',
                 activeTab === tab
                   ? 'bg-blue-700 dark:bg-blue-600 text-white hover:bg-blue-800 dark:hover:bg-blue-700'
                   : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
