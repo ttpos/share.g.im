@@ -3,8 +3,8 @@ import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 
 import '@/app/globals.css'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import Header from '@/components/Header'
 import { Providers } from '@/components/providers'
 import { AppStateProvider } from '@/contexts/AppStateContext'
 
