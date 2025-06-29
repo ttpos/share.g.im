@@ -126,7 +126,6 @@ export default function HomePage() {
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    // Only set isDragOver to false if we're leaving the drop zone completely
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false)
     }
@@ -217,7 +216,6 @@ export default function HomePage() {
     setSelectedFile(null)
     setTextInput('')
     setIsDragOver(false)
-    // Reset file input value to fix the bug
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -286,7 +284,6 @@ export default function HomePage() {
           } else if (progress !== undefined) {
             setProgress(Math.round(progress))
           } else if (data) {
-            // Clean up listener
             worker.removeEventListener('message', handleMessage)
             resolve(data)
           }
@@ -377,92 +374,88 @@ export default function HomePage() {
                 Paste Text
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="file" className="w-full bg-transparent mt-0">
-              <div className="w-full bg-transparent">
-                <div className="py-4 sm:py-6 space-y-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-4 sm:p-6">
-                    {fileInfo ? (
-                      <div className="p-3 sm:p-4 rounded-lg border-1 border-dashed border-blue-300 dark:border-blue-500 shadow-sm">
-                        <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 rounded-md bg-gray-100 dark:bg-gray-700">
-                          <div className="flex items-center flex-1 space-x-3 w-full">
-                            <Image
-                              src="/FolderFilled.svg"
-                              alt="Selected File"
-                              width={36}
-                              height={36}
-                              className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300"
-                            />
-                            <div className="flex flex-col flex-1 gap-1 sm:gap-2">
-                              <span className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px] sm:max-w-[300px]">
-                                {fileInfo.name}
-                              </span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                {formatFileSize(fileInfo.size)}
-                              </span>
-                            </div>
+            <TabsContent value="file" className="w-full max-w-[90vw] mt-0">
+              <div className="py-4 sm:py-6 space-y-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
+                  {fileInfo ? (
+                    <div className="p-4 rounded-lg border-1 border-dashed border-blue-300 dark:border-blue-500 shadow-sm">
+                      <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-md bg-gray-100 dark:bg-gray-700">
+                        <div className="flex items-center flex-1 space-x-3 w-full">
+                          <Image
+                            src="/FolderFilled.svg"
+                            alt="Selected File"
+                            width={36}
+                            height={36}
+                            className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300"
+                          />
+                          <div className="flex flex-col flex-1 gap-1 sm:gap-2">
+                            <span className="text-xs sm:text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px] sm:max-w-[300px]">
+                              {fileInfo.name}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatFileSize(fileInfo.size)}
+                            </span>
                           </div>
-                          <Button
-                            variant="secondary"
-                            className="mt-2 sm:mt-0 size-8 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 hover:bg-red-50 dark:hover:bg-red-900/50"
-                            onClick={clearState}
-                          >
-                            <X className="w-5 h-5" />
-                          </Button>
                         </div>
-                      </div>
-                    ) : (
-                      <div
-                        className={cn(
-                          'flex flex-col items-center justify-center p-4 sm:p-6 border-1 border-dashed rounded-md cursor-pointer transition-all py-8 sm:py-12',
-                          isDragOver 
-                            ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
-                            : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
-                        )}
-                        onClick={triggerFileInput}
-                        onDragOver={handleDragOver}
-                        onDragEnter={handleDragEnter}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                      >
-                        <Image
-                          src="/Files.svg"
-                          alt="Upload File"
-                          width={36}
-                          height={36}
-                          className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300 mb-2 sm:mb-3"
-                        />
-                        <p className={cn(
-                          'text-xs sm:text-sm font-medium text-center',
-                          isDragOver 
-                            ? 'text-blue-700 dark:text-blue-300' 
-                            : 'text-gray-700 dark:text-gray-200'
-                        )}>
-                          {isDragOver ? 'Drop your file here!' : 'Drag & Drop Your File'}
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">or</p>
                         <Button
-                          variant="outline"
-                          className="mt-2 px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50 cursor-pointer"
+                          variant="secondary"
+                          className="mt-2 sm:mt-0 size-8 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 hover:bg-red-50 dark:hover:bg-red-900/50"
+                          onClick={clearState}
                         >
-                          Select File
+                          <X className="w-5 h-5" />
                         </Button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        'flex flex-col items-center justify-center p-4 sm:p-6 border-1 border-dashed rounded-md cursor-pointer transition-all py-8 sm:py-12',
+                        isDragOver 
+                          ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
+                      )}
+                      onClick={triggerFileInput}
+                      onDragOver={handleDragOver}
+                      onDragEnter={handleDragEnter}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                    >
+                      <Image
+                        src="/Files.svg"
+                        alt="Upload File"
+                        width={36}
+                        height={36}
+                        className="w-9 h-9 sm:w-12 sm:h-12 text-gray-400 dark:text-gray-300 mb-2 sm:mb-3"
+                      />
+                      <p className={cn(
+                        'text-xs sm:text-sm font-medium text-center',
+                        isDragOver 
+                          ? 'text-blue-700 dark:text-blue-300' 
+                          : 'text-gray-700 dark:text-gray-200'
+                      )}>
+                        {isDragOver ? 'Drop your file here!' : 'Drag & Drop Your File'}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">or</p>
+                      <Button
+                        variant="outline"
+                        className="mt-2 px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50 cursor-pointer"
+                      >
+                        Select File
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="message" className="w-full bg-transparent mt-0">
-              <div className="w-full bg-transparent">
-                <div className="p-4 sm:p-6 space-y-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-4 sm:p-6">
-                    <Textarea
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="Paste or enter text to encrypt or decrypt"
-                      className="min-h-[120px] sm:min-h-[140px] max-h-[200px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
-                    />
-                  </div>
+            <TabsContent value="message" className="w-full max-w-[90vw] mt-0">
+              <div className="py-4 sm:py-6 space-y-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
+                  <Textarea
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder="Paste or enter text to encrypt or decrypt"
+                    className="h-[186px] sm:min-h-[238px] max-h-[238px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
+                  />
                 </div>
               </div>
             </TabsContent>

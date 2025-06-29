@@ -4,6 +4,7 @@ import { Toaster } from 'sonner'
 
 import '@/app/globals.css'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import { Providers } from '@/components/providers'
 import { AppStateProvider } from '@/contexts/AppStateContext'
 
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </div>
             </main>
+            <Footer />
             <Toaster
               richColors
               position="top-right"
