@@ -1,7 +1,13 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@ttpos/share-ui'
 
 interface ModeSwitcherProps {
   value: string;

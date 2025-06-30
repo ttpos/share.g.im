@@ -1,7 +1,6 @@
+import { cn } from '@ttpos/share-ui'
 import { Info, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
-
-import { cn } from '@/lib/utils'
 
 export default function FeaturesSection() {
   const [showFeatures, setShowFeatures] = useState(false)

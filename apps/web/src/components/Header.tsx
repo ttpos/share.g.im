@@ -1,11 +1,7 @@
 'use client'
 
-import { CircleHelp, Settings, Key, Shield, Lock } from 'lucide-react'
-import { useCallback } from 'react'
-
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,9 +9,15 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+  DropdownMenuSeparator,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@ttpos/share-ui'
+import { CircleHelp, Settings, Key, Shield, Lock } from 'lucide-react'
+import { useCallback } from 'react'
+
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAppState, ENCRYPTION_MODES } from '@/contexts/AppStateContext'
 
 // Define constants for action identifiers
@@ -122,7 +124,7 @@ export default function Header() {
                 <CircleHelp className="size-5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent className="">
               <p>ECIES File & Message Encryption Tool</p>
             </TooltipContent>
           </Tooltip>

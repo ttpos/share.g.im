@@ -1,10 +1,11 @@
 'use client'
 
+import {
+  Button,
+  cn
+} from '@ttpos/share-ui'
 import Image from 'next/image'
 import { useState, useMemo } from 'react'
-
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 
 // Type definitions
 type ContentKey =
@@ -175,14 +176,14 @@ const isFAQItem = (item: ContentItem): item is FAQContentItem => {
 }
 
 // Component for rendering individual content items
-const ContentCard = ({ item, index, isGridLayout }: { 
+const ContentCard = ({ item, index, isGridLayout }: {
   item: ContentItem
   index: number
-  isGridLayout: boolean 
+  isGridLayout: boolean
 }) => {
   if (isGridLayout) {
     return (
-      <div 
+      <div
         className="flex items-center flex-col bg-gray-100 dark:bg-gray-700 rounded-lg p-3 sm:p-4 transform transition-all duration-500 ease-out hover:scale-105 hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-bottom-8 fade-in"
         style={{
           animationDelay: `${index * 150}ms`
@@ -236,7 +237,7 @@ const ContentCard = ({ item, index, isGridLayout }: {
 
 // Component for rendering FAQ items
 const FAQCard = ({ item, index }: { item: FAQContentItem; index: number }) => (
-  <div 
+  <div
     className="flex flex-col gap-2 bg-gray-100 dark:bg-gray-700 p-3 sm:p-4 rounded-lg transform transition-all duration-500 ease-out hover:scale-105 hover:bg-gray-200 dark:hover:bg-gray-600 animate-in fade-in slide-in-from-bottom-4"
     style={{
       animationDelay: `${index * 150}ms`
@@ -301,11 +302,11 @@ export default function HowItWorksSection() {
     return (
       <div className={containerClass}>
         {currentContent.map((item, index) => (
-          <ContentCard 
-            key={index} 
-            item={item} 
-            index={index} 
-            isGridLayout={isGridLayout} 
+          <ContentCard
+            key={index}
+            item={item}
+            index={index}
+            isGridLayout={isGridLayout}
           />
         ))}
       </div>
@@ -318,10 +319,11 @@ export default function HowItWorksSection() {
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-gray-200 mb-8 sm:mb-12">
           How It Works
         </h2>
-        
+
         <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8 sm:mb-12">
           {TABS.map((tab) => (
             <Button
+              size="sm"
               key={tab}
               onClick={() => setActiveTab(tab)}
               variant={activeTab === tab ? 'default' : 'outline'}
@@ -336,7 +338,7 @@ export default function HowItWorksSection() {
             </Button>
           ))}
         </div>
-        
+
         {renderContent()}
       </div>
     </section>

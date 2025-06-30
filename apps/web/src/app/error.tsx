@@ -1,9 +1,13 @@
 'use client'
 
-import GradientText from '@/components/reactbits/GradientText'
-import ShinyText from '@/components/reactbits/ShinyText'
-import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import {
+  GradientText,
+  ShinyText,
+  Button,
+  Card,
+  CardHeader,
+  CardContent
+} from '@ttpos/share-ui'
 
 export default function Error({ reset }: { reset: () => void }) {
   return (
@@ -23,6 +27,7 @@ export default function Error({ reset }: { reset: () => void }) {
             className="text-xs sm:text-sm md:text-base text-gray-600 text-center dark:text-gray-400 font-medium"
           />
           <Button
+            variant="secondary"
             onClick={() => reset()}
             className="w-full text-white transition-all duration-300 shadow-md bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-400/30 hover:shadow-blue-500/40"
             size="lg"

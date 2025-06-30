@@ -1,6 +1,17 @@
 'use client'
 
-import { 
+import {
+  Button,
+  Label,
+  PasswordInput,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+  cn
+} from '@ttpos/share-ui'
+import {
   deriveKeyPair,
   detect,
   formatFileSize,
@@ -15,17 +26,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import HowItWorksSection from '@/components/HowItWorksSection'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { PasswordInput } from '@/components/ui/password-input'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
-import { cn, generateDownloadFilename } from '@/lib/utils'
+import { generateDownloadFilename } from '@/lib/utils'
 import { FileInfo } from '@/types'
 
 export default function HomePage() {
@@ -142,32 +143,34 @@ export default function HomePage() {
         toast.error('Please select only one file at a time')
         return
       }
-      
+
       const file = files[0]
       try {
-        setSelectedFile(file)
-        setFileInfo({
-          name: file.name,
-          size: file.size,
-          type: file.type || 'Unknown',
-          encryptionMode: 'public-key'
-        })
-        setTextInput('')
-        setInputType('file')
-        const metadata = await detect(file)
+        if (file) {
+          setSelectedFile(file)
+          setFileInfo({
+            name: file.name,
+            size: file.size,
+            type: file.type || 'Unknown',
+            encryptionMode: 'public-key'
+          })
+          setTextInput('')
+          setInputType('file')
+          const metadata = await detect(file)
 
-        if (metadata.encryptionType === 'pubk') {
-          if (inputType !== 'file') {
-            toast.info('Detected public key encrypted file, switching to Key Encryption mode')
-            setInputType('file')
+          if (metadata.encryptionType === 'pubk') {
+            if (inputType !== 'file') {
+              toast.info('Detected public key encrypted file, switching to Key Encryption mode')
+              setInputType('file')
+            }
+            setProcessMode(file.name.endsWith('.enc') ? 'decrypt' : 'encrypt')
+          } else if (metadata.encryptionType === 'signed') {
+            toast.error('Signed files are not supported yet')
+            clearState()
+            return
+          } else {
+            setProcessMode('encrypt')
           }
-          setProcessMode(file.name.endsWith('.enc') ? 'decrypt' : 'encrypt')
-        } else if (metadata.encryptionType === 'signed') {
-          toast.error('Signed files are not supported yet')
-          clearState()
-          return
-        } else {
-          setProcessMode('encrypt')
         }
       } catch (error) {
         console.error('File detection failed:', error)
@@ -288,7 +291,7 @@ export default function HomePage() {
             resolve(data)
           }
         }
-        
+
         worker.addEventListener('message', handleMessage)
 
         worker.postMessage({
@@ -398,11 +401,12 @@ export default function HomePage() {
                           </div>
                         </div>
                         <Button
+                          size={'sm'}
                           variant="secondary"
                           className="mt-2 sm:mt-0 size-8 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 hover:bg-red-50 dark:hover:bg-red-900/50"
                           onClick={clearState}
                         >
-                          <X className="w-5 h-5" />
+                          <X />
                         </Button>
                       </div>
                     </div>
@@ -410,8 +414,8 @@ export default function HomePage() {
                     <div
                       className={cn(
                         'flex flex-col items-center justify-center p-4 sm:p-6 border-1 border-dashed rounded-md cursor-pointer transition-all py-8 sm:py-12',
-                        isDragOver 
-                          ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                        isDragOver
+                          ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
                           : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
                       )}
                       onClick={triggerFileInput}
@@ -429,14 +433,15 @@ export default function HomePage() {
                       />
                       <p className={cn(
                         'text-xs sm:text-sm font-medium text-center',
-                        isDragOver 
-                          ? 'text-blue-700 dark:text-blue-300' 
+                        isDragOver
+                          ? 'text-blue-700 dark:text-blue-300'
                           : 'text-gray-700 dark:text-gray-200'
                       )}>
                         {isDragOver ? 'Drop your file here!' : 'Drag & Drop Your File'}
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">or</p>
                       <Button
+                        size={'sm'}
                         variant="outline"
                         className="mt-2 px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/50 cursor-pointer"
                       >
@@ -452,7 +457,7 @@ export default function HomePage() {
                 <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
                   <Textarea
                     value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
+                    onChange={(e) => setTextInput(e.target?.value)}
                     placeholder="Paste or enter text to encrypt or decrypt"
                     className="h-[186px] sm:min-h-[238px] max-h-[238px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
                   />
@@ -468,7 +473,6 @@ export default function HomePage() {
                         {processMode === 'encrypt' ? 'Public Key' : 'Private Key or Mnemonic'}
                       </Label>
                       <PasswordInput
-                        type="text"
                         value={keyInput}
                         onChange={(e) => setKeyInput(e.target.value)}
                         placeholder={

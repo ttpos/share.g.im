@@ -1,11 +1,4 @@
-import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-
 import { FileInfo } from '@/types'
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
 
 export function formatFileSize(bytes: number) {
   if (bytes === 0) return '0 Bytes'
