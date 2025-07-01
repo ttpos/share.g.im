@@ -314,12 +314,17 @@ export default function HomePage() {
             originalExtension: result.originalExtension
           } : null)
         }
+        if (result.base64) {
+          setTextResult(result.base64)
+          setTextInput(result.base64)
+        }
         if (result.signatureValid !== undefined) {
           toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
         }
         toast.success(`File ${mode === 'encrypt' ? 'encrypted' : 'decrypted'} successfully! Please click the download button to save.`)
       } else {
         setTextResult(result.base64 || '')
+        setTextInput(result.base64 || '')
         setEncryptedData(result.data)
         if (mode === 'decrypt' && result.signatureValid !== undefined) {
           toast.info(`Signature verification: ${result.signatureValid ? 'Valid' : 'Invalid'}`)
@@ -449,6 +454,16 @@ export default function HomePage() {
                       </Button>
                     </div>
                   )}
+                  {textResult && (
+                    <div className="mt-4">
+                      <Textarea
+                        value={textResult}
+                        readOnly
+                        placeholder="Processed file content will appear here"
+                        className="h-[186px] sm:min-h-[238px] max-h-[238px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -457,7 +472,8 @@ export default function HomePage() {
                 <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
                   <Textarea
                     value={textInput}
-                    onChange={(e) => setTextInput(e.target?.value)}
+                    onChange={(e) => !textResult ? setTextInput(e.target.value) : undefined}
+                    readOnly={!!textResult}
                     placeholder="Paste or enter text to encrypt or decrypt"
                     className="h-[186px] sm:min-h-[238px] max-h-[238px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
                   />

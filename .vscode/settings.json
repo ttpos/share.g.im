@@ -16,5 +16,6 @@
     {
       "mode": "auto"
     }
-  ]
+  ],
+  "tailwindCSS.experimental.configFile": "../apps/web/src/app/globals.css"
 }
