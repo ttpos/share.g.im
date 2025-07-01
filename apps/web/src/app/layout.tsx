@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Toaster } from 'sonner'
 
+// import './globals.css'
 import '@ttpos/share-ui/css'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
@@ -69,7 +70,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="flex flex-col items-center flex-1">
                 <Header />
 
-                {/* <div className="w-full max-w-[520px] sm:min-w-[520px]"> */}
                 <div className="w-full">
                   {children}
                 </div>

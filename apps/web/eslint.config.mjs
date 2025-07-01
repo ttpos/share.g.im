@@ -13,7 +13,7 @@ const compat = new FlatCompat({
 /** @type {import('eslint').Linter.FlatConfig[]} */
 const eslintConfig = [
   {
-    ignores: ['.next/*', 'node_modules/*', 'src/components/ui/*', 'src/components/reactbits/*']
+    ignores: ['.next/*', 'node_modules/*']
   },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
