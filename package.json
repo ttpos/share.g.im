@@ -31,6 +31,8 @@
     "react-dom": "catalog:prod"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "catalog:dev",
+    "@eslint-react/eslint-plugin": "catalog:dev",
     "@types/node": "catalog:dev",
     "@types/react": "catalog:dev",
     "@types/react-dom": "catalog:dev",

@@ -23,14 +23,11 @@
     "sonner": "catalog:prod"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "catalog:dev",
     "@tailwindcss/postcss": "catalog:dev",
     "@ttpos/share-tsconfig": "workspace:*",
     "@types/node": "catalog:dev",
     "@types/react": "catalog:dev",
     "@types/react-dom": "catalog:dev",
-    "eslint": "catalog:dev",
-    "eslint-config-next": "catalog:dev",
     "tailwindcss": "catalog:dev",
     "tw-animate-css": "catalog:dev",
     "typescript": "catalog:dev",
