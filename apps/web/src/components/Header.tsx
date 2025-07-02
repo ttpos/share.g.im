@@ -158,8 +158,8 @@ export default function Header() {
   }
 
   return (
-    <header className="relative w-full py-8 z-10 bg-[#0052D9] dark:bg-gray-900 text-white dark:text-gray-200 overflow-hidden">
-      <Lock className="hidden md:block absolute size-34 top-1/3 -left-12 text-[#4c85e4] dark:text-blue-400" />
+    <header className="relative w-full py-8 z-10 bg-[#0052D9] dark:bg-[#0E0F11] text-white dark:text-gray-200 overflow-hidden">
+      <Lock className="hidden md:block absolute size-34 top-1/3 -left-12 text-[#4c85e4] dark:text-[#121212]" />
       <div className="relative max-w-6xl mx-auto flex flex-col md:flex-row items-center md:justify-between gap-4 p-4">
         <div className="flex-1 text-center space-y-2">
           <h1 className="text-3xl md:text-4xl font-bold flex items-center justify-center text-white dark:text-gray-200">
@@ -473,11 +473,17 @@ export default function Header() {
                             <RadioGroup value={theme} onValueChange={setTheme} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                               <div className="flex items-center space-x-2">
                                 <RadioGroupItem
+                                  value="system"
+                                  id="system"
+                                  className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
+                                />
+                                <Label htmlFor="system" className="text-xs sm:text-sm">System</Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem
                                   value="light"
                                   id="light"
-                                  className={cn(
-                                    'border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5'
-                                  )}
+                                  className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
                                 />
                                 <Label htmlFor="light" className="text-xs sm:text-sm">Light</Label>
                               </div>
@@ -485,9 +491,7 @@ export default function Header() {
                                 <RadioGroupItem
                                   value="dark"
                                   id="dark"
-                                  className={cn(
-                                    'border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5'
-                                  )}
+                                  className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
                                 />
                                 <Label htmlFor="dark" className="text-xs sm:text-sm">Dark</Label>
                               </div>

@@ -184,7 +184,7 @@ const ContentCard = ({ item, index, isGridLayout }: {
   if (isGridLayout) {
     return (
       <div
-        className="flex items-center flex-col bg-gray-100 dark:bg-gray-700 rounded-lg p-3 sm:p-4 transform transition-all duration-500 ease-out hover:scale-105 hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-bottom-8 fade-in"
+        className="flex items-center flex-col bg-[#F6F4F180] dark:bg-[#13141680] rounded-lg p-3 sm:p-4 transform transition-all duration-500 ease-out hover:scale-105 hover:bg-gray-200 dark:hover:bg-gray-600 animate-in slide-in-from-bottom-8 fade-in"
         style={{
           animationDelay: `${index * 150}ms`
         }}
@@ -296,7 +296,7 @@ export default function HowItWorksSection() {
     }
 
     const containerClass = isGridLayout
-      ? 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-4 sm:p-6'
+      ? 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 bg-[#fff] dark:bg-[#282B30] rounded-xl p-4 sm:p-6'
       : 'bg-gray-50 dark:bg-gray-800 rounded-xl p-4 sm:p-6 space-y-4 sm:space-y-6'
 
     return (
@@ -314,7 +314,7 @@ export default function HowItWorksSection() {
   }
 
   return (
-    <section className="py-8 sm:py-12 md:py-16 bg-[#f5f3f0] dark:bg-gray-900">
+    <section className="py-8 sm:py-12 md:py-16 bg-[#f5f3f0] dark:bg-[#0E0F11]">
       <div className="max-w-[100vw] sm:max-w-3xl mx-auto px-4 sm:px-6">
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 dark:text-gray-200 mb-8 sm:mb-12">
           How It Works
