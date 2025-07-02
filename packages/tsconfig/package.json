@@ -7,6 +7,6 @@
     "prepare": "ts-patch install -s"
   },
   "devDependencies": {
-    "ts-patch": "^3.3.0"
+    "ts-patch": "catalog:dev"
   }
 }

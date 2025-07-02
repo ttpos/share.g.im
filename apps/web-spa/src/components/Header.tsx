@@ -1,10 +1,4 @@
-import {
-  Button,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from '@ttpos/share-ui'
-import { CircleHelp, Lock } from 'lucide-react'
+import { Lock } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ThemeToggle'
 
