@@ -109,10 +109,8 @@ export default function Header() {
         }
       }
       validateCurrentPassword()
-    } else {
-      if (currentPassword.length < 6) {
-        setCurrentPasswordError('')
-      }
+    } else if (currentPassword.length < 6) {
+      setCurrentPasswordError('')
     }
   }, [currentPassword, isPasswordSet, storedPasswordHash])
 
@@ -258,8 +256,8 @@ export default function Header() {
       return
     }
     if (newPassword !== confirmPassword) {
-      setValidationError('New password and confirm password do not match')
-      toast.error('New password and confirm password do not match')
+      setValidationError('The two passwords are inconsistent, please re-enter')
+      toast.error('The two passwords are inconsistent, please re-enter')
       return
     }
 
@@ -322,16 +320,6 @@ export default function Header() {
     setIsNotePopoverOpen(false)
     setIsDeletePopoverOpen(false)
     setDeleteIndex(null)
-  }
-
-  // Handle cancel action for password change
-  const handleCancelPasswordChange = () => {
-    setShowChangePassword(false)
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    setValidationError('')
-    setCurrentPasswordError('')
   }
 
   // Handle add new public key
@@ -605,511 +593,421 @@ export default function Header() {
                         </div>
                       </div>
                     </div>
-                  ) : showChangePassword ? (
+                  ) : activeTab === 'Security Password' ? (
                     <div className="p-4 sm:p-6">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Password</h2>
-                        {isPasswordSet && (
-                          <Popover>
+                      {showChangePassword ? (
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                Security Password
+                              </h2>
+                            </div>
+                            {isPasswordSet && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 cursor-pointer"
+                                  >
+                                    Forgot password
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[90vw] sm:w-80">
+                                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                    Forgot your password? Just
+                                    <span
+                                      className="px-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 cursor-pointer"
+                                      onClick={() => handleTabClick('General')}
+                                    >
+                                      reset your account
+                                    </span>
+                                    to start over. Don’t forget to back up your data first.
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                          <div className="flex justify-center text-center pt-2 pb-6">
+                            <div className="w-full pb-4 sm:pb-6 space-y-4">
+                              {!isPasswordSet && (
+                                <Alert className="flex bg-[#E6F0FF]">
+                                  <AlertTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    You haven’t set a security password yet. To protect your account, please set one now.
+                                  </AlertTitle>
+                                </Alert>
+                              )}
+                              <div className="w-full sm:w-3/4 space-y-4">
+                                {isPasswordSet && (
+                                  <div className="space-y-2">
+                                    <Label htmlFor="current-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                      Current Password
+                                    </Label>
+                                    <CustomOtpInput
+                                      length={6}
+                                      value={currentPassword}
+                                      onChange={setCurrentPassword}
+                                      id="current-password-otp-input"
+                                      disabled={!isPasswordSet}
+                                      error={!!currentPasswordError}
+                                    />
+                                    {currentPasswordError && (
+                                      <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
+                                        {currentPasswordError}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="space-y-2">
+                                  <Label htmlFor="new-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {isPasswordSet ? 'New Password' : 'Set your Password'}
+                                  </Label>
+                                  <CustomOtpInput
+                                    length={6}
+                                    value={newPassword}
+                                    onChange={setNewPassword}
+                                    id="new-password-otp-input"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="confirm-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {isPasswordSet ? 'Confirm New Password' : 'Confirm Password'}
+                                  </Label>
+                                  <CustomOtpInput
+                                    length={6}
+                                    value={confirmPassword}
+                                    onChange={setConfirmPassword}
+                                    id="confirm-password-otp-input"
+                                    error={!!(newPassword && confirmPassword && newPassword !== confirmPassword)}
+                                  />
+                                </div>
+                                {(validationError || (newPassword && confirmPassword && newPassword !== confirmPassword)) && (
+                                  <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
+                                    {validationError || 'The two passwords are inconsistent, please re-enter'}
+                                  </p>
+                                )}
+                                <div className="flex">
+                                  <Button
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    onClick={handleSetOrChangePassword}
+                                    disabled={
+                                      !newPassword ||
+                                      !confirmPassword ||
+                                      (isPasswordSet && !currentPassword) ||
+                                      (isPasswordSet && !!currentPasswordError) ||
+                                      newPassword !== confirmPassword
+                                    }
+                                  >
+                                    Save {!isPasswordSet && 'Password'}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : isPasswordSet ? (
+                        <div className="space-y-4 sm:space-y-6">
+                          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Password</h2>
+                          <div className="flex flex-col items-start space-y-4 sm:space-y-6 pb-4 sm:pb-6">
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Your Security Password</h3>
+                            <Input type="password" readOnly value="******" />
+                            <div className="flex gap-3 w-full sm:w-auto">
+                              <Button
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                onClick={() => setShowChangePassword(true)}
+                              >
+                                Change
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <></>
+                      )}
+                    </div>
+                  ) : activeTab === 'General' ? (
+                    <div className="p-4 sm:p-6">
+                      <div className="space-y-4 sm:space-y-6">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">General</h2>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
+                          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Theme</h3>
+                          <RadioGroup value={theme} onValueChange={setTheme} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem
+                                value="system"
+                                id="system"
+                                className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
+                              />
+                              <Label htmlFor="system" className="text-xs sm:text-sm">System</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem
+                                value="light"
+                                id="light"
+                                className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
+                              />
+                              <Label htmlFor="light" className="text-xs sm:text-sm">Light</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem
+                                value="dark"
+                                id="dark"
+                                className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
+                              />
+                              <Label htmlFor="dark" className="text-xs sm:text-sm">Dark</Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Back Up Data</h3>
+                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              Back up your keys and external public keys.
+                            </p>
+                          </div>
+                          <Button
+                            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={handleBackup}
+                          >
+                            Export
+                          </Button>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Import Data</h3>
+                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              Import backup data to restore keys and external public keys.
+                            </p>
+                          </div>
+                          <Button
+                            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => setShowImportDialog(true)}
+                          >
+                            Import
+                          </Button>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 gap-2 sm:gap-0">
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Reset Account</h3>
+                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              Resetting the account will delete all locally stored data. This action cannot be undone.
+                            </p>
+                          </div>
+                          <Popover open={isResetPopoverOpen} onOpenChange={setIsResetPopoverOpen}>
                             <PopoverTrigger asChild>
                               <Button
-                                variant="ghost"
-                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 cursor-pointer"
+                                variant="destructive"
+                                className="w-full sm:w-auto"
                               >
-                                Forgot password
+                                Reset
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[90vw] sm:w-80">
-                              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                Forgot your password? Just
-                                <span
-                                  className="px-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 cursor-pointer"
-                                  onClick={() => handleTabClick('General')}
-                                >
-                                  reset your account
-                                </span>
-                                to start over. Don’t forget to back up your data first.
+                              <div className="space-y-3 sm:space-y-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                                    <Info className="size-3 sm:size-4 text-red-600 dark:text-red-400" />
+                                  </div>
+                                  <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Reset Account</h4>
+                                </div>
+                                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                  Resetting the account will delete all locally stored data. Please make sure you have 
+                                  backed up your key file (.enc). This action cannot be undone.
+                                </p>
+                                <div className="flex justify-end gap-2 sm:gap-3">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setIsResetPopoverOpen(false)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    onClick={handleReset}
+                                  >
+                                    Reset
+                                  </Button>
+                                </div>
                               </div>
                             </PopoverContent>
                           </Popover>
-                        )}
-                      </div>
-                      <div className="flex justify-center text-center pt-2 pb-6">
-                        <div className="w-full pb-4 sm:pb-6 space-y-4">
-                          {!isPasswordSet && (
-                            <Alert className="flex bg-[#E6F0FF]">
-                              <AlertTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                You haven’t set a security password yet. To protect your account, please set one now.
-                              </AlertTitle>
-                            </Alert>
-                          )}
-                          <div className="w-full sm:w-3/4 space-y-4">
-                            {isPasswordSet && (
-                              <div className="space-y-2">
-                                <Label htmlFor="current-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                  Current Password
-                                </Label>
-                                <CustomOtpInput
-                                  length={6}
-                                  value={currentPassword}
-                                  onChange={setCurrentPassword}
-                                  id="current-password-otp-input"
-                                  disabled={!isPasswordSet}
-                                  error={!!currentPasswordError}
-                                />
-                                {currentPasswordError && (
-                                  <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
-                                    {currentPasswordError}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            <div className="space-y-2">
-                              <Label htmlFor="new-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {isPasswordSet ? 'New Password' : 'Set your Password'}
-                              </Label>
-                              <CustomOtpInput
-                                length={6}
-                                value={newPassword}
-                                onChange={setNewPassword}
-                                id="new-password-otp-input"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="confirm-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                {isPasswordSet ? 'Confirm New Password' : 'Confirm Password'}
-                              </Label>
-                              <CustomOtpInput
-                                length={6}
-                                value={confirmPassword}
-                                onChange={setConfirmPassword}
-                                id="confirm-password-otp-input"
-                                error={!!(newPassword && confirmPassword && newPassword !== confirmPassword)}
-                              />
-                            </div>
-                            {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                              <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
-                                The two passwords are inconsistent, please re-enter
-                              </p>
-                            )}
-                            <div className="flex gap-3">
-                              <Button
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                onClick={handleSetOrChangePassword}
-                                disabled={
-                                  !newPassword ||
-                                  !confirmPassword ||
-                                  (isPasswordSet && !currentPassword) ||
-                                  (isPasswordSet && !!currentPasswordError) ||
-                                  newPassword !== confirmPassword
-                                }
-                              >
-                                Save {!isPasswordSet && 'Password'}
-                              </Button>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="p-4 sm:p-6">
-                      {activeTab === 'General' && (
-                        <div className="space-y-4 sm:space-y-6">
-                          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">General</h2>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
-                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Theme</h3>
-                            <RadioGroup value={theme} onValueChange={setTheme} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem
-                                  value="system"
-                                  id="system"
-                                  className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
-                                />
-                                <Label htmlFor="system" className="text-xs sm:text-sm">System</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem
-                                  value="light"
-                                  id="light"
-                                  className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
-                                />
-                                <Label htmlFor="light" className="text-xs sm:text-sm">Light</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem
-                                  value="dark"
-                                  id="dark"
-                                  className={cn('border-gray-300 dark:border-gray-600 h-4 w-4 sm:h-5 sm:w-5')}
-                                />
-                                <Label htmlFor="dark" className="text-xs sm:text-sm">Dark</Label>
-                              </div>
-                            </RadioGroup>
-                          </div>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
-                            <div>
-                              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Back Up Data</h3>
-                              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                Back up your keys and external public keys.
-                              </p>
-                            </div>
-                            <Button
-                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={handleBackup}
-                            >
-                              Export
-                            </Button>
-                          </div>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
-                            <div>
-                              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Import Data</h3>
-                              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                Import backup data to restore keys and external public keys.
-                              </p>
-                            </div>
-                            <Button
-                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => setShowImportDialog(true)}
-                            >
-                              Import
-                            </Button>
-                          </div>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 gap-2 sm:gap-0">
-                            <div>
-                              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Reset Account</h3>
-                              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                Resetting the account will delete all locally stored data. This action cannot be undone.
-                              </p>
-                            </div>
-                            <Popover open={isResetPopoverOpen} onOpenChange={setIsResetPopoverOpen}>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  className="w-full sm:w-auto"
-                                >
-                                  Reset
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[90vw] sm:w-80">
-                                <div className="space-y-3 sm:space-y-4">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                                      <Info className="size-3 sm:size-4 text-red-600 dark:text-red-400" />
-                                    </div>
-                                    <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Reset Account</h4>
-                                  </div>
-                                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                    Resetting the account will delete all locally stored data. Please make sure you have 
-                                    backed up your key file (.enc). This action cannot be undone.
-                                  </p>
-                                  <div className="flex justify-end gap-2 sm:gap-3">
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => setIsResetPopoverOpen(false)}
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={handleReset}
-                                    >
-                                      Reset
-                                    </Button>
-                                  </div>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          </div>
+                  ) : activeTab === 'External Public Keys' ? (
+                    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">External Public Keys</h2>
+                        {publicKeys.length > 0 && (
+                          <Button
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={handleAddPublicKey}
+                          >
+                            Add External Public Key
+                          </Button>
+                        )}
+                      </div>
+                      {publicKeys.length === 0 ? (
+                        <div className="flex flex-col items-center pt-10 pb-20">
+                          <Image
+                            src="/PublicKeys.svg"
+                            alt="No Keys Icon"
+                            width={40}
+                            height={40}
+                            className="size-10 sm:size-12 text-blue-500 mx-auto mb-2"
+                          />
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
+                            Add an external public key to encrypt files or text.
+                          </p>
+                          <Button
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={handleAddPublicKey}
+                          >
+                            Add External Public Key
+                          </Button>
                         </div>
-                      )}
-                      {activeTab === 'External Public Keys' && (
-                        <div className="space-y-4 sm:space-y-6">
-                          <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">External Public Keys</h2>
-                            {publicKeys.length > 0 && (
-                              <Button
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                onClick={handleAddPublicKey}
-                              >
-                                Add External Public Key
-                              </Button>
-                            )}
-                          </div>
-                          {publicKeys.length === 0 ? (
-                            <div className="flex flex-col items-center pt-10 pb-20">
-                              <Image
-                                src="/PublicKeys.svg"
-                                alt="No Keys Icon"
-                                width={40}
-                                height={40}
-                                className="size-10 sm:size-12 text-blue-500 mx-auto mb-2"
-                              />
-                              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
-                                Add an external public key to encrypt files or text.
-                              </p>
-                              <Button
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                onClick={handleAddPublicKey}
-                              >
-                                Add External Public Key
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="overflow-x-auto pb-4 sm:pb-6">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="p-2 sm:p-3 text-left">Public Key</TableHead>
-                                    <TableHead className="p-2 sm:p-3 text-left w-3/5 truncate">Note</TableHead>
-                                    <TableHead className="p-2 sm:p-3 text-left"></TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {publicKeys.map((key: PublicKey, index: number) => (
-                                    <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600 text-gray-500 font-normal">
-                                      <TableCell>
-                                        <div className="flex items-center gap-2">
-                                          {sliceAddress(key.publicKey)}
+                      ) : (
+                        <div className="overflow-x-auto pb-4 sm:pb-6">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="p-2 sm:p-3 text-left">Public Key</TableHead>
+                                <TableHead className="p-2 sm:p-3 text-left w-3/5 truncate">Note</TableHead>
+                                <TableHead className="p-2 sm:p-3 text-left"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {publicKeys.map((key: PublicKey, index: number) => (
+                                <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600 text-gray-500 font-normal">
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      {sliceAddress(key.publicKey)}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleCopy(key.publicKey)}
+                                      >
+                                        <Copy className="size-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <span className="truncate max-w-30 sm:max-w-40">
+                                        {key.note || '---'}
+                                      </span>
+                                      <Popover open={isNotePopoverOpen && editKey?.index === index} onOpenChange={(open) => {
+                                        if (!open) {
+                                          setIsNotePopoverOpen(false)
+                                          setEditKey(null)
+                                        }
+                                      }}>
+                                        <PopoverTrigger asChild>
                                           <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => handleCopy(key.publicKey)}
+                                            onClick={() => handleEditNote(key, index)}
                                           >
-                                            <Copy className="size-4" />
+                                            <Pencil className="size-4" />
                                           </Button>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-2">
-                                          <span className="truncate max-w-30 sm:max-w-40">
-                                            {key.note || '---'}
-                                          </span>
-                                          <Popover open={isNotePopoverOpen && editKey?.index === index} onOpenChange={(open) => {
-                                            if (!open) {
-                                              setIsNotePopoverOpen(false)
-                                              setEditKey(null)
-                                            }
-                                          }}>
-                                            <PopoverTrigger asChild>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[90vw] sm:w-80">
+                                          <div className="space-y-4">
+                                            <Label htmlFor="editNote" className="text-sm font-medium text-gray-900 dark:text-gray-100">Edit Note</Label>
+                                            <Input
+                                              id="editNote"
+                                              type="text"
+                                              value={editKey?.note || ''}
+                                              onChange={handleNoteChange}
+                                              className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"
+                                              placeholder="Optional note for this public key"
+                                            />
+                                            <div className="flex justify-end gap-2">
                                               <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleEditNote(key, index)}
+                                                variant="outline"
+                                                onClick={() => {
+                                                  setIsNotePopoverOpen(false)
+                                                  setEditKey(null)
+                                                }}
                                               >
-                                                <Pencil className="size-4" />
+                                                Cancel
                                               </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[90vw] sm:w-80">
-                                              <div className="space-y-4">
-                                                <Label htmlFor="editNote" className="text-sm font-medium text-gray-900 dark:text-gray-100">Edit Note</Label>
-                                                <Input
-                                                  id="editNote"
-                                                  type="text"
-                                                  value={editKey?.note || ''}
-                                                  onChange={handleNoteChange}
-                                                  className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"
-                                                  placeholder="Optional note for this public key"
-                                                />
-                                                <div className="flex justify-end gap-2">
-                                                  <Button
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                      setIsNotePopoverOpen(false)
-                                                      setEditKey(null)
-                                                    }}
-                                                  >
-                                                    Cancel
-                                                  </Button>
-                                                  <Button
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                                    onClick={handleSaveNote}
-                                                  >
-                                                    Save
-                                                  </Button>
-                                                </div>
-                                              </div>
-                                            </PopoverContent>
-                                          </Popover>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>
-                                        <Popover open={isDeletePopoverOpen && deleteIndex === index} onOpenChange={(open) => {
-                                          if (!open) {
-                                            setIsDeletePopoverOpen(false)
-                                            setDeleteIndex(null)
-                                          }
-                                        }}>
-                                          <PopoverTrigger asChild>
+                                              <Button
+                                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                onClick={handleSaveNote}
+                                              >
+                                                Save
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Popover open={isDeletePopoverOpen && deleteIndex === index} onOpenChange={(open) => {
+                                      if (!open) {
+                                        setIsDeletePopoverOpen(false)
+                                        setDeleteIndex(null)
+                                      }
+                                    }}>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => {
+                                            setIsDeletePopoverOpen(true)
+                                            setDeleteIndex(index)
+                                          }}
+                                        >
+                                          <Trash2 className="size-4 sm:size-5" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-[90vw] sm:w-80">
+                                        <div className="space-y-3 sm:space-y-4">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                                              <Info className="size-3 sm:size-4 text-red-600 dark:text-red-400" />
+                                            </div>
+                                            <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Delete Public Key</h4>
+                                          </div>
+                                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                            Are you sure you want to delete this public key? This action cannot be undone.
+                                          </p>
+                                          <div className="flex justify-end gap-2 sm:gap-3">
                                             <Button
-                                              variant="ghost"
-                                              size="icon"
+                                              variant="outline"
                                               onClick={() => {
-                                                setIsDeletePopoverOpen(true)
-                                                setDeleteIndex(index)
+                                                setIsDeletePopoverOpen(false)
+                                                setDeleteIndex(null)
                                               }}
                                             >
-                                              <Trash2 className="size-4 sm:size-5" />
+                                              Cancel
                                             </Button>
-                                          </PopoverTrigger>
-                                          <PopoverContent className="w-[90vw] sm:w-80">
-                                            <div className="space-y-3 sm:space-y-4">
-                                              <div className="flex items-center gap-2">
-                                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                                                  <Info className="size-3 sm:size-4 text-red-600 dark:text-red-400" />
-                                                </div>
-                                                <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Delete Public Key</h4>
-                                              </div>
-                                              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                                                Are you sure you want to delete this public key? This action cannot be undone.
-                                              </p>
-                                              <div className="flex justify-end gap-2 sm:gap-3">
-                                                <Button
-                                                  variant="outline"
-                                                  onClick={() => {
-                                                    setIsDeletePopoverOpen(false)
-                                                    setDeleteIndex(null)
-                                                  }}
-                                                >
-                                                  Cancel
-                                                </Button>
-                                                <Button
-                                                  variant="destructive"
-                                                  onClick={() => handleDeleteKey(index)}
-                                                >
-                                                  Delete
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          </PopoverContent>
-                                        </Popover>
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          )}
+                                            <Button
+                                              variant="destructive"
+                                              onClick={() => handleDeleteKey(index)}
+                                            >
+                                              Delete
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         </div>
                       )}
-                      {activeTab === 'Security Password' && (
-                        <div className="space-y-4 sm:space-y-6">
-                          {showChangePassword ? (
-                            <div>
-                              <div className="flex items-center gap-2 mb-4">
-                                {isPasswordSet && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleCancelPasswordChange}
-                                  >
-                                    <ChevronLeft className="size-4" />
-                                  </Button>
-                                )}
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                                  {isPasswordSet ? 'Change Password' : 'Set Security Password'}
-                                </h2>
-                              </div>
-                              <div className="flex justify-center text-center pt-2 pb-6">
-                                <div className="w-full pb-4 sm:pb-6 space-y-4">
-                                  {!isPasswordSet && (
-                                    <Alert className="flex bg-[#E6F0FF]">
-                                      <AlertTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        You haven’t set a security password yet. To protect your account, please set one now.
-                                      </AlertTitle>
-                                    </Alert>
-                                  )}
-                                  <div className="w-full sm:w-3/4 space-y-4">
-                                    {isPasswordSet && (
-                                      <div className="space-y-2">
-                                        <Label htmlFor="current-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                          Current Password
-                                        </Label>
-                                        <CustomOtpInput
-                                          length={6}
-                                          value={currentPassword}
-                                          onChange={setCurrentPassword}
-                                          id="current-password-otp-input"
-                                          disabled={!isPasswordSet}
-                                          error={!!currentPasswordError}
-                                        />
-                                        {currentPasswordError && (
-                                          <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
-                                            {currentPasswordError}
-                                          </p>
-                                        )}
-                                      </div>
-                                    )}
-                                    <div className="space-y-2">
-                                      <Label htmlFor="new-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        {isPasswordSet ? 'New Password' : 'Set your Password'}
-                                      </Label>
-                                      <CustomOtpInput
-                                        length={6}
-                                        value={newPassword}
-                                        onChange={setNewPassword}
-                                        id="new-password-otp-input"
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label htmlFor="confirm-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        {isPasswordSet ? 'Confirm New Password' : 'Confirm Password'}
-                                      </Label>
-                                      <CustomOtpInput
-                                        length={6}
-                                        value={confirmPassword}
-                                        onChange={setConfirmPassword}
-                                        id="confirm-password-otp-input"
-                                        error={!!(newPassword && confirmPassword && newPassword !== confirmPassword)}
-                                      />
-                                    </div>
-                                    {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                                      <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
-                                        The two passwords are inconsistent, please re-enter
-                                      </p>
-                                    )}
-                                    <div className="flex gap-3">
-                                      <Button
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                        onClick={handleSetOrChangePassword}
-                                        disabled={
-                                          !newPassword ||
-                                          !confirmPassword ||
-                                          (isPasswordSet && !currentPassword) ||
-                                          (isPasswordSet && !!currentPasswordError) ||
-                                          newPassword !== confirmPassword
-                                        }
-                                      >
-                                        Save {isPasswordSet ? 'New Password' : 'Password'}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-4 sm:space-y-6">
-                              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Password</h2>
-                              <div className="flex flex-col items-start space-y-4 sm:space-y-6 pb-4 sm:pb-6">
-                                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Your Security Password</h3>
-                                <Input type="password" readOnly value="******" />
-                                <Button
-                                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                                  onClick={() => setShowChangePassword(true)}
-                                >
-                                  Change
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {activeTab !== 'General' && activeTab !== 'External Public Keys' && activeTab !== 'Security Password' && (
-                        <div>
-                          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">{activeTab}</h2>
-                          <p className="text-gray-600 dark:text-gray-400">
-                            Content for {activeTab} section will be implemented here.
-                          </p>
-                        </div>
-                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 sm:p-6">
+                      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">{activeTab}</h2>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Content for {activeTab} section will be implemented here.
+                      </p>
                     </div>
                   )}
                 </div>
