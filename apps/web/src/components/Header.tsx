@@ -27,7 +27,9 @@ import {
 import {
   isBase58String,
   validateBase58PublicKey,
-  sliceAddress
+  sliceAddress,
+  hashPasswordFn,
+  verifyPasswordFn
 } from '@ttpos/share-utils'
 import { Settings, Lock, X, Copy, Pencil, Trash2, Info, ChevronLeft } from 'lucide-react'
 import Image from 'next/image'
@@ -58,14 +60,16 @@ export default function Header() {
   const [confirmPassword, setConfirmPassword] = useState<string>('')
   const [showChangePassword, setShowChangePassword] = useState<boolean>(false)
   const [isPasswordSet, setIsPasswordSet] = useState<boolean>(false)
+  const [storedPasswordHash, setStoredPasswordHash] = useState<string | null>(null)
   const [validationError, setValidationError] = useState<string>('')
+  const [currentPasswordError, setCurrentPasswordError] = useState<string>('')
   const [isNotePopoverOpen, setIsNotePopoverOpen] = useState<boolean>(false)
   const [isDeletePopoverOpen, setIsDeletePopoverOpen] = useState<boolean>(false)
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null)
 
   const tabs: string[] = ['General', 'Keys', 'External Public Keys', 'Security Password']
 
-  // Initialize publicKeys from localStorage
+  // Initialize publicKeys and password hash from localStorage
   useEffect(() => {
     try {
       const storedKeys = localStorage.getItem('externalPublicKeys')
@@ -75,11 +79,42 @@ export default function Header() {
           setPublicKeys(parsedKeys)
         }
       }
+      const storedHash = localStorage.getItem('passwordHash')
+      if (storedHash) {
+        setStoredPasswordHash(storedHash)
+        setIsPasswordSet(true)
+      }
     } catch (error) {
-      console.error('Failed to load public keys from localStorage:', error)
-      toast.error('Failed to load external public keys. Please check browser storage settings.')
+      console.error('Failed to load data from localStorage:', error)
+      toast.error('Failed to load data. Please check browser storage settings.')
     }
   }, [])
+
+  // Validate current password when it changes
+  useEffect(() => {
+    if (isPasswordSet && currentPassword.length === 6) {
+      const validateCurrentPassword = async () => {
+        try {
+          const isValid = await verifyPasswordFn(storedPasswordHash!, currentPassword)
+          if (!isValid) {
+            setCurrentPasswordError('Current password is incorrect')
+            toast.error('Current password is incorrect')
+          } else {
+            setCurrentPasswordError('')
+          }
+        } catch (error) {
+          console.error('Failed to verify current password:', error)
+          setCurrentPasswordError('Failed to verify current password')
+          toast.error('Failed to verify current password')
+        }
+      }
+      validateCurrentPassword()
+    } else {
+      if (currentPassword.length < 6) {
+        setCurrentPasswordError('')
+      }
+    }
+  }, [currentPassword, isPasswordSet, storedPasswordHash])
 
   // Handle tab navigation and reset states
   const handleTabClick = (tab: string) => {
@@ -88,11 +123,12 @@ export default function Header() {
     setShowImportDialog(false)
     setShowAddKey(false)
     setEditKey(null)
-    setShowChangePassword(false)
+    setShowChangePassword(tab === 'Security Password' && !isPasswordSet)
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
     setValidationError('')
+    setCurrentPasswordError('')
     setIsNotePopoverOpen(false)
     setIsDeletePopoverOpen(false)
     setDeleteIndex(null)
@@ -116,11 +152,14 @@ export default function Header() {
   const handleReset = () => {
     try {
       localStorage.removeItem('externalPublicKeys')
+      localStorage.removeItem('passwordHash')
       setPublicKeys([])
+      setStoredPasswordHash(null)
+      setIsPasswordSet(false)
       setIsResetPopoverOpen(false)
-      toast.success('Account reset successfully. External public keys cleared.')
+      toast.success('Account reset successfully. All data cleared.')
     } catch (error) {
-      console.error('Failed to reset public keys:', error)
+      console.error('Failed to reset account:', error)
       toast.error('Failed to reset account. Please check browser storage settings.')
     }
   }
@@ -133,14 +172,12 @@ export default function Header() {
       return
     }
 
-    // Validate public key format
     if (!isBase58String(editKey.publicKey)) {
       setValidationError('Invalid public key format. Must be a Base58 string.')
       toast.error('Invalid public key format. Must be a Base58 string.')
       return
     }
 
-    // Validate public key
     const validation = validateBase58PublicKey(editKey.publicKey)
     if (!validation.isValid) {
       setValidationError(validation.error || 'Public key validation failed. Please check your input.')
@@ -148,7 +185,6 @@ export default function Header() {
       return
     }
 
-    // Save to publicKeys and localStorage
     try {
       const newPublicKeys = [...publicKeys]
       if (editKey.index !== undefined) {
@@ -209,17 +245,64 @@ export default function Header() {
   }
 
   // Set or change security password
-  const handleSetOrChangePassword = () => {
-    if (newPassword && confirmPassword && newPassword !== confirmPassword) {
+  const handleSetOrChangePassword = async () => {
+    // Validate new password and confirm password
+    if (!newPassword) {
+      setValidationError('Please enter a new password')
+      toast.error('Please enter a new password')
       return
     }
-    if (!isPasswordSet) {
-      setIsPasswordSet(true)
+    if (!confirmPassword) {
+      setValidationError('Please enter the confirm password')
+      toast.error('Please enter the confirm password')
+      return
     }
-    setShowChangePassword(false)
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
+    if (newPassword !== confirmPassword) {
+      setValidationError('New password and confirm password do not match')
+      toast.error('New password and confirm password do not match')
+      return
+    }
+
+    // Validate current password if changing password
+    if (isPasswordSet && storedPasswordHash) {
+      if (!currentPassword) {
+        setCurrentPasswordError('Please enter the current password')
+        toast.error('Please enter the current password')
+        return
+      }
+      try {
+        const isValid = await verifyPasswordFn(storedPasswordHash, currentPassword)
+        if (!isValid) {
+          setCurrentPasswordError('Current password is incorrect')
+          toast.error('Current password is incorrect')
+          return
+        }
+      } catch (error) {
+        console.error('Password verification failed:', error)
+        setCurrentPasswordError('Failed to verify current password')
+        toast.error('Failed to verify current password')
+        return
+      }
+    }
+
+    // Save new password
+    try {
+      const hashedPassword = await hashPasswordFn(newPassword)
+      localStorage.setItem('passwordHash', hashedPassword)
+      setStoredPasswordHash(hashedPassword)
+      setIsPasswordSet(true)
+      setShowChangePassword(false)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setValidationError('')
+      setCurrentPasswordError('')
+      toast.success(isPasswordSet ? 'Password updated successfully' : 'Password set successfully')
+    } catch (error) {
+      console.error('Failed to save password:', error)
+      setValidationError('Failed to save password. Please try again.')
+      toast.error('Failed to save password. Please try again.')
+    }
   }
 
   // Close settings dialog and reset all states
@@ -235,6 +318,7 @@ export default function Header() {
     setNewPassword('')
     setConfirmPassword('')
     setValidationError('')
+    setCurrentPasswordError('')
     setIsNotePopoverOpen(false)
     setIsDeletePopoverOpen(false)
     setDeleteIndex(null)
@@ -246,6 +330,8 @@ export default function Header() {
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
+    setValidationError('')
+    setCurrentPasswordError('')
   }
 
   // Handle add new public key
@@ -258,7 +344,7 @@ export default function Header() {
   // Handle public key input change
   const handlePublicKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditKey({ ...editKey || { publicKey: '', note: '' }, publicKey: e.target.value })
-    setValidationError('') // Clear validation error on input change
+    setValidationError('')
   }
 
   // Handle note input change
@@ -266,7 +352,7 @@ export default function Header() {
     setEditKey({ ...editKey || { publicKey: '', note: '' }, note: e.target.value })
   }
 
-  // Handle backup action (placeholder)
+  // Handle backup action
   const handleBackup = () => {
     // Implement backup logic here
   }
@@ -521,17 +607,32 @@ export default function Header() {
                     </div>
                   ) : showChangePassword ? (
                     <div className="p-4 sm:p-6">
-                      <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Password</h2>
                         {isPasswordSet && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleCancelPasswordChange}
-                          >
-                            <ChevronLeft className="size-4" />
-                          </Button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 cursor-pointer"
+                              >
+                                Forgot password
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[90vw] sm:w-80">
+                              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                Forgot your password? Just
+                                <span
+                                  className="px-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-500 cursor-pointer"
+                                  onClick={() => handleTabClick('General')}
+                                >
+                                  reset your account
+                                </span>
+                                to start over. Don’t forget to back up your data first.
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         )}
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Security Password</h2>
                       </div>
                       <div className="flex justify-center text-center pt-2 pb-6">
                         <div className="w-full pb-4 sm:pb-6 space-y-4">
@@ -554,7 +655,13 @@ export default function Header() {
                                   onChange={setCurrentPassword}
                                   id="current-password-otp-input"
                                   disabled={!isPasswordSet}
+                                  error={!!currentPasswordError}
                                 />
+                                {currentPasswordError && (
+                                  <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
+                                    {currentPasswordError}
+                                  </p>
+                                )}
                               </div>
                             )}
                             <div className="space-y-2">
@@ -589,7 +696,13 @@ export default function Header() {
                               <Button
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                                 onClick={handleSetOrChangePassword}
-                                disabled={!newPassword || !confirmPassword || (newPassword !== confirmPassword)}
+                                disabled={
+                                  !newPassword ||
+                                  !confirmPassword ||
+                                  (isPasswordSet && !currentPassword) ||
+                                  (isPasswordSet && !!currentPasswordError) ||
+                                  newPassword !== confirmPassword
+                                }
                               >
                                 Save {!isPasswordSet && 'Password'}
                               </Button>
@@ -877,19 +990,116 @@ export default function Header() {
                           )}
                         </div>
                       )}
-                      {activeTab === 'Security Password' && isPasswordSet && (
+                      {activeTab === 'Security Password' && (
                         <div className="space-y-4 sm:space-y-6">
-                          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Password</h2>
-                          <div className="flex flex-col items-start space-y-4 sm:space-y-6 pb-4 sm:pb-6">
-                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Your Security Password</h3>
-                            <Input type="password" readOnly value="123456" />
-                            <Button
-                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => setShowChangePassword(true)}
-                            >
-                              Change
-                            </Button>
-                          </div>
+                          {showChangePassword ? (
+                            <div>
+                              <div className="flex items-center gap-2 mb-4">
+                                {isPasswordSet && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleCancelPasswordChange}
+                                  >
+                                    <ChevronLeft className="size-4" />
+                                  </Button>
+                                )}
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                  {isPasswordSet ? 'Change Password' : 'Set Security Password'}
+                                </h2>
+                              </div>
+                              <div className="flex justify-center text-center pt-2 pb-6">
+                                <div className="w-full pb-4 sm:pb-6 space-y-4">
+                                  {!isPasswordSet && (
+                                    <Alert className="flex bg-[#E6F0FF]">
+                                      <AlertTitle className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        You haven’t set a security password yet. To protect your account, please set one now.
+                                      </AlertTitle>
+                                    </Alert>
+                                  )}
+                                  <div className="w-full sm:w-3/4 space-y-4">
+                                    {isPasswordSet && (
+                                      <div className="space-y-2">
+                                        <Label htmlFor="current-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                          Current Password
+                                        </Label>
+                                        <CustomOtpInput
+                                          length={6}
+                                          value={currentPassword}
+                                          onChange={setCurrentPassword}
+                                          id="current-password-otp-input"
+                                          disabled={!isPasswordSet}
+                                          error={!!currentPasswordError}
+                                        />
+                                        {currentPasswordError && (
+                                          <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
+                                            {currentPasswordError}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div className="space-y-2">
+                                      <Label htmlFor="new-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        {isPasswordSet ? 'New Password' : 'Set your Password'}
+                                      </Label>
+                                      <CustomOtpInput
+                                        length={6}
+                                        value={newPassword}
+                                        onChange={setNewPassword}
+                                        id="new-password-otp-input"
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor="confirm-password-otp-input-0" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                        {isPasswordSet ? 'Confirm New Password' : 'Confirm Password'}
+                                      </Label>
+                                      <CustomOtpInput
+                                        length={6}
+                                        value={confirmPassword}
+                                        onChange={setConfirmPassword}
+                                        id="confirm-password-otp-input"
+                                        error={!!(newPassword && confirmPassword && newPassword !== confirmPassword)}
+                                      />
+                                    </div>
+                                    {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                                      <p className="text-left text-xs sm:text-sm text-red-600 dark:text-red-400">
+                                        The two passwords are inconsistent, please re-enter
+                                      </p>
+                                    )}
+                                    <div className="flex gap-3">
+                                      <Button
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                        onClick={handleSetOrChangePassword}
+                                        disabled={
+                                          !newPassword ||
+                                          !confirmPassword ||
+                                          (isPasswordSet && !currentPassword) ||
+                                          (isPasswordSet && !!currentPasswordError) ||
+                                          newPassword !== confirmPassword
+                                        }
+                                      >
+                                        Save {isPasswordSet ? 'New Password' : 'Password'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 sm:space-y-6">
+                              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Password</h2>
+                              <div className="flex flex-col items-start space-y-4 sm:space-y-6 pb-4 sm:pb-6">
+                                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Your Security Password</h3>
+                                <Input type="password" readOnly value="******" />
+                                <Button
+                                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                                  onClick={() => setShowChangePassword(true)}
+                                >
+                                  Change
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       {activeTab !== 'General' && activeTab !== 'External Public Keys' && activeTab !== 'Security Password' && (
