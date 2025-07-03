@@ -11,7 +11,6 @@ const App: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="flex flex-col items-center flex-1">
           <Header />
 
-          {/* <div className="w-full max-w-[520px] sm:min-w-[520px]"> */}
           <div className="w-full">
             {children}
           </div>

@@ -147,3 +147,25 @@ export function validateBase58PublicKey(key: string): {
     }
   }
 }
+
+/**
+ * Slices an pubk address to a shorter format
+ * @param address - The pubk address to slice
+ * @param startLength - Number of characters to keep at the start
+ * @param endLength - Number of characters to keep at the end
+ * @returns The sliced address in the format "start...end"
+ */
+export const sliceAddress = (
+  address?: `0x${string}` | string,
+  startLength: number = 3,
+  endLength: number = 4
+) => {
+  if (!address) return ''
+
+  if (address.length <= startLength + endLength) {
+    return address
+  }
+
+  return `${address.slice(0, startLength)}...${address.slice(-endLength)}`
+}
+

@@ -24,16 +24,22 @@ import {
   Alert,
   AlertTitle
 } from '@ttpos/share-ui'
-import { Settings, Lock, X, Trash2, Info, ChevronLeft } from 'lucide-react'
+import {
+  isBase58String,
+  validateBase58PublicKey,
+  sliceAddress
+} from '@ttpos/share-utils'
+import { Settings, Lock, X, Copy, Pencil, Trash2, Info, ChevronLeft } from 'lucide-react'
 import Image from 'next/image'
 import { useTheme } from 'next-themes'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 
 // Type definitions
 interface PublicKey {
-  publicKey: string;
-  note: string;
-  index?: number;
+  publicKey: string
+  note: string
+  index?: number
 }
 
 export default function Header() {
@@ -52,8 +58,28 @@ export default function Header() {
   const [confirmPassword, setConfirmPassword] = useState<string>('')
   const [showChangePassword, setShowChangePassword] = useState<boolean>(false)
   const [isPasswordSet, setIsPasswordSet] = useState<boolean>(false)
+  const [validationError, setValidationError] = useState<string>('')
+  const [isNotePopoverOpen, setIsNotePopoverOpen] = useState<boolean>(false)
+  const [isDeletePopoverOpen, setIsDeletePopoverOpen] = useState<boolean>(false)
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null)
 
   const tabs: string[] = ['General', 'Keys', 'External Public Keys', 'Security Password']
+
+  // Initialize publicKeys from localStorage
+  useEffect(() => {
+    try {
+      const storedKeys = localStorage.getItem('externalPublicKeys')
+      if (storedKeys) {
+        const parsedKeys = JSON.parse(storedKeys)
+        if (Array.isArray(parsedKeys)) {
+          setPublicKeys(parsedKeys)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load public keys from localStorage:', error)
+      toast.error('Failed to load external public keys. Please check browser storage settings.')
+    }
+  }, [])
 
   // Handle tab navigation and reset states
   const handleTabClick = (tab: string) => {
@@ -66,9 +92,10 @@ export default function Header() {
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
-    if (tab === 'Security Password' && !isPasswordSet) {
-      setShowChangePassword(true)
-    }
+    setValidationError('')
+    setIsNotePopoverOpen(false)
+    setIsDeletePopoverOpen(false)
+    setDeleteIndex(null)
   }
 
   // Handle file selection for import
@@ -87,27 +114,98 @@ export default function Header() {
 
   // Handle account reset
   const handleReset = () => {
-    setIsResetPopoverOpen(false)
+    try {
+      localStorage.removeItem('externalPublicKeys')
+      setPublicKeys([])
+      setIsResetPopoverOpen(false)
+      toast.success('Account reset successfully. External public keys cleared.')
+    } catch (error) {
+      console.error('Failed to reset public keys:', error)
+      toast.error('Failed to reset account. Please check browser storage settings.')
+    }
   }
 
   // Save or update public key
   const handleSaveKey = () => {
-    if (editKey) {
+    if (!editKey?.publicKey) {
+      setValidationError('Please enter a public key')
+      toast.error('Please enter a public key')
+      return
+    }
+
+    // Validate public key format
+    if (!isBase58String(editKey.publicKey)) {
+      setValidationError('Invalid public key format. Must be a Base58 string.')
+      toast.error('Invalid public key format. Must be a Base58 string.')
+      return
+    }
+
+    // Validate public key
+    const validation = validateBase58PublicKey(editKey.publicKey)
+    if (!validation.isValid) {
+      setValidationError(validation.error || 'Public key validation failed. Please check your input.')
+      toast.error(validation.error || 'Public key validation failed. Please check your input.')
+      return
+    }
+
+    // Save to publicKeys and localStorage
+    try {
       const newPublicKeys = [...publicKeys]
       if (editKey.index !== undefined) {
-        newPublicKeys[editKey.index] = { publicKey: editKey.publicKey, note: editKey.note }
+        newPublicKeys[editKey.index] = { publicKey: editKey.publicKey, note: editKey.note || '' }
       } else {
-        newPublicKeys.push({ publicKey: editKey.publicKey, note: editKey.note })
+        newPublicKeys.push({ publicKey: editKey.publicKey, note: editKey.note || '' })
       }
       setPublicKeys(newPublicKeys)
+      localStorage.setItem('externalPublicKeys', JSON.stringify(newPublicKeys))
+      toast.success('Public key saved successfully')
+      setShowAddKey(false)
+      setEditKey(null)
+      setValidationError('')
+    } catch (error) {
+      console.error('Failed to save public key to localStorage:', error)
+      setValidationError('Failed to save public key. Please check browser storage settings.')
+      toast.error('Failed to save public key. Please check browser storage settings.')
     }
-    setShowAddKey(false)
-    setEditKey(null)
   }
 
   // Delete public key
   const handleDeleteKey = (index: number) => {
-    setPublicKeys(publicKeys.filter((_, i) => i !== index))
+    try {
+      const newPublicKeys = publicKeys.filter((_, i) => i !== index)
+      setPublicKeys(newPublicKeys)
+      localStorage.setItem('externalPublicKeys', JSON.stringify(newPublicKeys))
+      toast.success('Public key deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete public key:', error)
+      toast.error('Failed to delete public key. Please check browser storage settings.')
+    }
+    setIsDeletePopoverOpen(false)
+    setDeleteIndex(null)
+  }
+
+  // Handle edit note
+  const handleEditNote = (key: PublicKey, index: number) => {
+    setEditKey({ ...key, index })
+    setIsNotePopoverOpen(true)
+  }
+
+  // Handle save note
+  const handleSaveNote = () => {
+    if (editKey && editKey.index !== undefined) {
+      try {
+        const newPublicKeys = [...publicKeys]
+        newPublicKeys[editKey.index] = { publicKey: editKey.publicKey, note: editKey.note || '' }
+        setPublicKeys(newPublicKeys)
+        localStorage.setItem('externalPublicKeys', JSON.stringify(newPublicKeys))
+        toast.success('Note updated successfully')
+        setIsNotePopoverOpen(false)
+        setEditKey(null)
+      } catch (error) {
+        console.error('Failed to update note:', error)
+        toast.error('Failed to update note. Please check browser storage settings.')
+      }
+    }
   }
 
   // Set or change security password
@@ -136,6 +234,10 @@ export default function Header() {
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
+    setValidationError('')
+    setIsNotePopoverOpen(false)
+    setIsDeletePopoverOpen(false)
+    setDeleteIndex(null)
   }
 
   // Handle cancel action for password change
@@ -150,11 +252,32 @@ export default function Header() {
   const handleAddPublicKey = () => {
     setEditKey({ publicKey: '', note: '' })
     setShowAddKey(true)
+    setValidationError('')
+  }
+
+  // Handle public key input change
+  const handlePublicKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditKey({ ...editKey || { publicKey: '', note: '' }, publicKey: e.target.value })
+    setValidationError('') // Clear validation error on input change
+  }
+
+  // Handle note input change
+  const handleNoteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditKey({ ...editKey || { publicKey: '', note: '' }, note: e.target.value })
   }
 
   // Handle backup action (placeholder)
   const handleBackup = () => {
     // Implement backup logic here
+  }
+
+  const handleCopy = (address: string) => {
+    if (address) {
+      navigator.clipboard.writeText(address)
+      toast.success('Public key copied to clipboard')
+    } else {
+      toast.error('Public key is empty, cannot copy')
+    }
   }
 
   return (
@@ -334,6 +457,7 @@ export default function Header() {
                           onClick={() => {
                             setShowAddKey(false)
                             setEditKey(null)
+                            setValidationError('')
                           }}
                         >
                           <ChevronLeft className="size-4" />
@@ -349,9 +473,17 @@ export default function Header() {
                                 id="publicKey"
                                 type="text"
                                 value={editKey?.publicKey || ''}
-                                onChange={(e) => setEditKey({ ...editKey || { publicKey: '', note: '' }, publicKey: e.target.value })}
-                                className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"
+                                onChange={handlePublicKeyChange}
+                                className={cn(
+                                  'w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border',
+                                  validationError ? 'border-red-500 dark:border-red-400' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400',
+                                  'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200'
+                                )}
+                                placeholder="Enter Base58 public key (approx. 44-45 characters)"
                               />
+                              {validationError && (
+                                <p className="text-xs sm:text-sm text-red-600 dark:text-red-400">{validationError}</p>
+                              )}
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="note" className="text-sm font-medium text-gray-900 dark:text-gray-100">Note</Label>
@@ -359,8 +491,9 @@ export default function Header() {
                                 id="note"
                                 type="text"
                                 value={editKey?.note || ''}
-                                onChange={(e) => setEditKey({ ...editKey || { publicKey: '', note: '' }, note: e.target.value })}
+                                onChange={handleNoteChange}
                                 className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"
+                                placeholder="Optional note for this public key"
                               />
                             </div>
                             <div className="flex gap-3">
@@ -369,6 +502,7 @@ export default function Header() {
                                 onClick={() => {
                                   setShowAddKey(false)
                                   setEditKey(null)
+                                  setValidationError('')
                                 }}
                               >
                                 Cancel
@@ -376,8 +510,9 @@ export default function Header() {
                               <Button
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                                 onClick={handleSaveKey}
+                                disabled={!editKey?.publicKey}
                               >
-                                Add External Public Key
+                                {editKey?.index !== undefined ? 'Update Public Key' : 'Add Public Key'}
                               </Button>
                             </div>
                           </div>
@@ -609,25 +744,130 @@ export default function Header() {
                             <div className="overflow-x-auto pb-4 sm:pb-6">
                               <Table>
                                 <TableHeader>
-                                  <TableRow className="bg-gray-200 dark:bg-gray-700">
+                                  <TableRow>
                                     <TableHead className="p-2 sm:p-3 text-left">Public Key</TableHead>
-                                    <TableHead className="p-2 sm:p-3 text-left">Note</TableHead>
+                                    <TableHead className="p-2 sm:p-3 text-left w-3/5 truncate">Note</TableHead>
                                     <TableHead className="p-2 sm:p-3 text-left"></TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {publicKeys.map((key: PublicKey, index: number) => (
-                                    <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600">
-                                      <TableCell className="p-2 sm:p-3">{key.publicKey}</TableCell>
-                                      <TableCell className="p-2 sm:p-3">{key.note}</TableCell>
-                                      <TableCell className="p-2 sm:p-3">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() => handleDeleteKey(index)}
-                                        >
-                                          <Trash2 className="size-4 sm:size-5" />
-                                        </Button>
+                                    <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600 text-gray-500 font-normal">
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          {sliceAddress(key.publicKey)}
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleCopy(key.publicKey)}
+                                          >
+                                            <Copy className="size-4" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          <span className="truncate max-w-30 sm:max-w-40">
+                                            {key.note || '---'}
+                                          </span>
+                                          <Popover open={isNotePopoverOpen && editKey?.index === index} onOpenChange={(open) => {
+                                            if (!open) {
+                                              setIsNotePopoverOpen(false)
+                                              setEditKey(null)
+                                            }
+                                          }}>
+                                            <PopoverTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleEditNote(key, index)}
+                                              >
+                                                <Pencil className="size-4" />
+                                              </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[90vw] sm:w-80">
+                                              <div className="space-y-4">
+                                                <Label htmlFor="editNote" className="text-sm font-medium text-gray-900 dark:text-gray-100">Edit Note</Label>
+                                                <Input
+                                                  id="editNote"
+                                                  type="text"
+                                                  value={editKey?.note || ''}
+                                                  onChange={handleNoteChange}
+                                                  className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"
+                                                  placeholder="Optional note for this public key"
+                                                />
+                                                <div className="flex justify-end gap-2">
+                                                  <Button
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                      setIsNotePopoverOpen(false)
+                                                      setEditKey(null)
+                                                    }}
+                                                  >
+                                                    Cancel
+                                                  </Button>
+                                                  <Button
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                    onClick={handleSaveNote}
+                                                  >
+                                                    Save
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                            </PopoverContent>
+                                          </Popover>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Popover open={isDeletePopoverOpen && deleteIndex === index} onOpenChange={(open) => {
+                                          if (!open) {
+                                            setIsDeletePopoverOpen(false)
+                                            setDeleteIndex(null)
+                                          }
+                                        }}>
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => {
+                                                setIsDeletePopoverOpen(true)
+                                                setDeleteIndex(index)
+                                              }}
+                                            >
+                                              <Trash2 className="size-4 sm:size-5" />
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-[90vw] sm:w-80">
+                                            <div className="space-y-3 sm:space-y-4">
+                                              <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                                                  <Info className="size-3 sm:size-4 text-red-600 dark:text-red-400" />
+                                                </div>
+                                                <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Delete Public Key</h4>
+                                              </div>
+                                              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                                Are you sure you want to delete this public key? This action cannot be undone.
+                                              </p>
+                                              <div className="flex justify-end gap-2 sm:gap-3">
+                                                <Button
+                                                  variant="outline"
+                                                  onClick={() => {
+                                                    setIsDeletePopoverOpen(false)
+                                                    setDeleteIndex(null)
+                                                  }}
+                                                >
+                                                  Cancel
+                                                </Button>
+                                                <Button
+                                                  variant="destructive"
+                                                  onClick={() => handleDeleteKey(index)}
+                                                >
+                                                  Delete
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
                                       </TableCell>
                                     </TableRow>
                                   ))}

@@ -340,11 +340,16 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="relative py-8 sm:py-12 md:py-16 z-[1] bg-[#f5f3f0] dark:bg-gray-900">
+      <div className="relative py-8 sm:py-12 md:py-16 z-[1] bg-[#f5f3f0] dark:bg-[#0E0F11]">
         <img
           src="/MaskGroup.svg"
           alt="Hero Background"
-          className="absolute w-full h-full object-contain sm:object-cover -z-10"
+          className="absolute w-full h-full object-contain sm:object-cover -z-10 dark:hidden"
+        />
+        <img
+          src="/MaskGroup_Dark.svg"
+          alt="Hero Background"
+          className="absolute w-full h-full object-contain sm:object-cover -z-10 hidden dark:block"
         />
         <input
           type="file"
@@ -363,7 +368,7 @@ export default function HomePage() {
               setInputType(value as 'file' | 'message')
             }}
           >
-            <TabsList className="flex h-auto bg-white dark:bg-gray-800 p-1 rounded-t-lg justify-center">
+            <TabsList className="flex h-auto bg-white dark:bg-[#282B30] p-1 rounded-t-lg justify-center">
               <TabsTrigger
                 value="file"
                 className="flex-1 sm:flex-none px-4 sm:px-8 py-2 text-xs sm:text-sm font-medium text-[#00000099] dark:text-gray-300 data-[state=active]:text-white data-[state=active]:bg-blue-700 dark:data-[state=active]:bg-blue-600 transition-colors rounded-md cursor-pointer"
@@ -379,7 +384,7 @@ export default function HomePage() {
             </TabsList>
             <TabsContent value="file" className="w-full max-w-[90vw] mt-0">
               <div className="py-4 sm:py-6 space-y-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-[#282B30] rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
                   {fileInfo ? (
                     <div className="p-4 rounded-lg border-1 border-dashed border-blue-300 dark:border-blue-500 shadow-sm">
                       <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-md bg-gray-100 dark:bg-gray-700">
@@ -454,12 +459,12 @@ export default function HomePage() {
             </TabsContent>
             <TabsContent value="message" className="w-full max-w-[90vw] mt-0">
               <div className="py-4 sm:py-6 space-y-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-[#282B30] rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
                   <Textarea
                     value={textInput}
                     onChange={(e) => setTextInput(e.target?.value)}
                     placeholder="Paste or enter text to encrypt or decrypt"
-                    className="h-[186px] sm:min-h-[238px] max-h-[238px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
+                    className="h-[182px] sm:min-h-[234px] max-h-[234px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#282B30] text-[#282B30] dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
                   />
                 </div>
               </div>
