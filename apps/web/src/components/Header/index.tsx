@@ -137,7 +137,10 @@ export default function Header() {
           onFileSelect={handleFileSelect}
           onImport={handleImport}
           onCancel={() => setShowImportDialog(false)}
+          setPublicKeys={setPublicKeys}
+          setKeyPairs={setKeyPairs}
         />
+      // setStoredPasswordHash={setStoredPasswordHash}
       )
     }
 

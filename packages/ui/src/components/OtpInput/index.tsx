@@ -110,8 +110,8 @@ export function CustomOtpInput({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <div className="flex gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex gap-1 sm:gap-2">
           {Array.from({ length }).map((_, index) => (
             <Input
               key={index}
@@ -125,10 +125,11 @@ export function CustomOtpInput({
               onPaste={(e) => handlePaste(e, index)}
               onKeyDown={(e) => handleKeyDown(e, index)}
               className={cn(
-                "w-12 h-12 text-center rounded-md focus:ring-2",
-                "border border-gray-300 focus:ring-blue-500",
-                disabled && "bg-gray-100 cursor-not-allowed",
-                error && "border-red-500 focus:ring-red-500"
+                "w-10 h-10 sm:w-12 sm:h-12 text-center text-sm sm:text-base rounded-md focus:ring-2",
+                "border border-gray-300 focus:ring-blue-500 focus:border-blue-500",
+                "dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:focus:ring-blue-400 dark:focus:border-blue-400",
+                disabled && "bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-50",
+                error && "border-red-500 focus:ring-red-500 dark:border-red-400 dark:focus:ring-red-400"
               )}
               maxLength={1}
               disabled={disabled}
@@ -139,14 +140,18 @@ export function CustomOtpInput({
           ))}
         </div>
         <Button
-          variant="secondary"
+          variant="ghost"
           size="icon"
           onClick={() => setIsPasswordMode(!isPasswordMode)}
           disabled={disabled}
           aria-label={isPasswordMode ? "Show OTP" : "Hide OTP"}
-          className={cn("h-10 w-10", disabled && "opacity-50 cursor-not-allowed")}
+          className={cn(
+            "h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0",
+            "hover:bg-gray-100 dark:hover:bg-gray-700",
+            disabled && "opacity-50 cursor-not-allowed"
+          )}
         >
-          {isPasswordMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {isPasswordMode ? <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" /> : <Eye className="h-3 w-3 sm:h-4 sm:w-4" />}
         </Button>
       </div>
     </div>
