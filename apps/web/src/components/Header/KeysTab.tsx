@@ -43,21 +43,20 @@ export const KeysTab = ({
   // Handle updating note
   const handleNoteChange = useCallback((value: string) => {
     setEditKeyPair((prev: KeyPair | null) =>
-      prev ? { ...prev, note: value } : { publicKey: '', privateKey: '', note: value }
+      prev ? { ...prev, note: value } : { publicKey: '', note: value }
     )
   }, [setEditKeyPair])
 
   // Handle updating public key
   const handlePublicKeyChange = useCallback((value: string) => {
     setEditKeyPair((prev: KeyPair | null) =>
-      prev ? { ...prev, publicKey: value } : { publicKey: value, privateKey: '', note: '' }
+      prev ? { ...prev, publicKey: value } : { publicKey: value, note: '' }
     )
   }, [setEditKeyPair])
 
-  // Handle updating private key
-  const handlePrivateKeyChange = useCallback((value: string) => {
+  const handleMnemonicChange = useCallback((value: string) => {
     setEditKeyPair((prev: KeyPair | null) =>
-      prev ? { ...prev, privateKey: value } : { publicKey: '', privateKey: value, note: '' }
+      prev ? { ...prev, mnemonic: value } : { publicKey: '', privateKey: '', mnemonic: value, note: '' }
     )
   }, [setEditKeyPair])
 
@@ -82,7 +81,7 @@ export const KeysTab = ({
             keyPair={editKeyPair}
             onNoteChange={handleNoteChange}
             onPublicKeyChange={handlePublicKeyChange}
-            onPrivateKeyChange={handlePrivateKeyChange}
+            onMnemonicChange={handleMnemonicChange} // 添加这个
             onSave={handleSave}
             onCancel={() => setShowCreateKeyPair(false)}
           />
@@ -114,7 +113,7 @@ export const KeysTab = ({
         <KeyPairTable
           keyPairs={keyPairs}
           onCopyPublic={(key) => handleCopyKey(key, 'public')}
-          onCopyPrivate={(key) => handleCopyKey(key, 'private')}
+          onCopyMnemonic={(mnemonic) => handleCopyKey(mnemonic, 'mnemonic')}
           onEditNote={(keyPair, index) => setEditKeyPair({ ...keyPair, index })}
           onDelete={handleDeleteKeyPair}
           onSaveNote={handleSaveNoteInTable}

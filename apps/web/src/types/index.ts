@@ -6,10 +6,10 @@ export interface FileInfo {
   originalExtension?: string
 }
 
-export interface KeyPair {
-  publicKey: string
-  privateKey: string
-}
+// export interface KeyPair {
+//   publicKey: string
+//   privateKey: string
+// }
 
 export interface PublicKey {
   publicKey: string
@@ -19,7 +19,7 @@ export interface PublicKey {
 
 export interface KeyPair {
   publicKey: string
-  privateKey: string
+  mnemonic?: string
   note: string
   index?: number
 }
