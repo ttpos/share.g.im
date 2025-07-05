@@ -1,0 +1,125 @@
+/* eslint-disable no-unused-vars */
+
+import { Button } from '@ttpos/share-ui'
+import { ChevronLeft } from 'lucide-react'
+import { useCallback } from 'react'
+
+import { CreateKeyPairForm } from '@/components/Header/CreateKeyPairForm'
+import { EmptyState } from '@/components/Header/EmptyState'
+import { KeyPairTable } from '@/components/Header/KeyPairTable'
+import { useKeyPairManagement } from '@/hooks'
+import { KeyPair } from '@/types'
+
+interface KeysTabProps {
+  keyPairs: KeyPair[]
+  setKeyPairs: (keys: KeyPair[]) => void
+  showCreateKeyPair: boolean
+  setShowCreateKeyPair: (show: boolean) => void
+  editKeyPair: KeyPair | null
+  setEditKeyPair: (keyPair: KeyPair | null | ((prev: KeyPair | null) => KeyPair | null)) => void
+}
+
+export const KeysTab = ({
+  keyPairs,
+  setKeyPairs,
+  showCreateKeyPair,
+  setShowCreateKeyPair,
+  editKeyPair,
+  setEditKeyPair
+}: KeysTabProps) => {
+  const {
+    handleCreateKeyPair,
+    handleSaveKeyPair,
+    handleDeleteKeyPair,
+    handleCopyKey,
+    handleSaveNoteInTable
+  } = useKeyPairManagement({
+    keyPairs,
+    setKeyPairs,
+    setEditKeyPair,
+    setShowCreateKeyPair
+  })
+
+  // Handle updating note
+  const handleNoteChange = useCallback((value: string) => {
+    setEditKeyPair((prev: KeyPair | null) =>
+      prev ? { ...prev, note: value } : { publicKey: '', privateKey: '', note: value }
+    )
+  }, [setEditKeyPair])
+
+  // Handle updating public key
+  const handlePublicKeyChange = useCallback((value: string) => {
+    setEditKeyPair((prev: KeyPair | null) =>
+      prev ? { ...prev, publicKey: value } : { publicKey: value, privateKey: '', note: '' }
+    )
+  }, [setEditKeyPair])
+
+  // Handle updating private key
+  const handlePrivateKeyChange = useCallback((value: string) => {
+    setEditKeyPair((prev: KeyPair | null) =>
+      prev ? { ...prev, privateKey: value } : { publicKey: '', privateKey: value, note: '' }
+    )
+  }, [setEditKeyPair])
+
+  // Handle saving with validation
+  const handleSave = useCallback(() => {
+    if (editKeyPair) {
+      handleSaveKeyPair(editKeyPair)
+    }
+  }, [editKeyPair, handleSaveKeyPair])
+
+  if (showCreateKeyPair) {
+    return (
+      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Button variant="ghost" size="icon" onClick={() => setShowCreateKeyPair(false)}>
+            <ChevronLeft className="size-4" />
+          </Button>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Keys</h2>
+        </div>
+        <div className="flex justify-center text-center pt-2 pb-6">
+          <CreateKeyPairForm
+            keyPair={editKeyPair}
+            onNoteChange={handleNoteChange}
+            onPublicKeyChange={handlePublicKeyChange}
+            onPrivateKeyChange={handlePrivateKeyChange}
+            onSave={handleSave}
+            onCancel={() => setShowCreateKeyPair(false)}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Keys</h2>
+        {keyPairs.length > 0 && (
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleCreateKeyPair}>
+            Create Key
+          </Button>
+        )}
+      </div>
+
+      {keyPairs.length === 0 ? (
+        <EmptyState
+          icon="/PublicKeys.svg"
+          title="No Keys"
+          description="Create a Key to Encrypt Files or Text"
+          buttonText="Create Key"
+          onButtonClick={handleCreateKeyPair}
+        />
+      ) : (
+        <KeyPairTable
+          keyPairs={keyPairs}
+          onCopyPublic={(key) => handleCopyKey(key, 'public')}
+          onCopyPrivate={(key) => handleCopyKey(key, 'private')}
+          onEditNote={(keyPair, index) => setEditKeyPair({ ...keyPair, index })}
+          onDelete={handleDeleteKeyPair}
+          onSaveNote={handleSaveNoteInTable}
+        />
+      )}
+    </div>
+  )
+}

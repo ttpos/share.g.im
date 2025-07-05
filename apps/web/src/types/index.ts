@@ -10,3 +10,23 @@ export interface KeyPair {
   publicKey: string
   privateKey: string
 }
+
+export interface PublicKey {
+  publicKey: string
+  note: string
+  index?: number
+}
+
+export interface KeyPair {
+  publicKey: string
+  privateKey: string
+  note: string
+  index?: number
+}
+
+export type TabType = 'General' | 'Keys' | 'External Public Keys' | 'Security Password'
+
+export interface ValidationResult {
+  isValid: boolean
+  error?: string
+}
