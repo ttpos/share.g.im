@@ -18,7 +18,7 @@ import {
   HoverCardTrigger
 } from '@ttpos/share-ui'
 import { sliceAddress } from '@ttpos/share-utils'
-import { Copy, Pencil, Trash2, Info, Link } from 'lucide-react'
+import { Copy, Pencil, Trash2, Info, Link, Download } from 'lucide-react'
 import { useState } from 'react'
 
 import { KeyPair } from '@/types'
@@ -26,7 +26,7 @@ import { KeyPair } from '@/types'
 interface KeyPairTableProps {
   keyPairs: KeyPair[]
   onCopyPublic: (publicKey: string) => void
-  onCopyPrivate: (privateKey: string) => void
+  onCopyMnemonic: (mnemonic: string) => void
   onEditNote: (keyPair: KeyPair, index: number) => void
   onDelete: (index: number) => void
   onSaveNote: (index: number, note: string) => void
@@ -35,7 +35,7 @@ interface KeyPairTableProps {
 export const KeyPairTable = ({
   keyPairs,
   onCopyPublic,
-  onCopyPrivate,
+  onCopyMnemonic,
   onEditNote,
   onDelete,
   onSaveNote
@@ -84,9 +84,23 @@ export const KeyPairTable = ({
     setEditingIndex(null)
   }
 
-  const handleLink = (privateKey: string) => {
-    const link = `${window.location.href}#/pub/${privateKey}`
+  const handleLink = (publicKey: string) => {
+    const link = `${window.location.href}#/pub/${publicKey}`
     window.open(link, '_blank')
+  }
+
+  const handleDownloadMnemonic = (mnemonic: string, index: number) => {
+    if (mnemonic) {
+      const blob = new Blob([mnemonic], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `mnemonic_${index + 1}.txt`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
   }
 
   return (
@@ -95,7 +109,7 @@ export const KeyPairTable = ({
         <TableHeader>
           <TableRow>
             <TableHead className="p-2 sm:p-3 text-left">Public Key</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left">Private Key</TableHead>
+            {/* <TableHead className="p-2 sm:p-3 text-left">Mnemonic</TableHead> */}
             <TableHead className="p-2 sm:p-3 text-left w-2/5">Note</TableHead>
             <TableHead className="p-2 sm:p-3 text-left"></TableHead>
           </TableRow>
@@ -133,14 +147,23 @@ export const KeyPairTable = ({
                   </HoverCardContent>
                 </HoverCard>
               </TableCell>
-              <TableCell>
+              {/* <TableCell>
                 <div className="flex items-center gap-2">
-                  {sliceAddress(keyPair.privateKey)}
-                  <Button variant="ghost" size="icon" onClick={() => onCopyPrivate(keyPair.privateKey)}>
-                    <Copy className="size-4" />
-                  </Button>
+                  {keyPair.mnemonic ? sliceAddress(keyPair.mnemonic, 20) : '***'}
+                  <div className="flex gap-1">
+                    {keyPair.mnemonic && (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => onCopyMnemonic(keyPair.mnemonic!)}>
+                          <Copy className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDownloadMnemonic(keyPair.mnemonic!, index)}>
+                          <Download className="size-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </TableCell>
+              </TableCell> */}
               <TableCell>
                 <div className="flex items-center gap-2">
                   <span className="truncate max-w-30 sm:max-w-40">
@@ -168,7 +191,7 @@ export const KeyPairTable = ({
                             Cancel
                           </Button>
                           <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveNote}>
-                            Confirm
+                            Save
                           </Button>
                         </div>
                       </div>

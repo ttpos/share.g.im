@@ -18,7 +18,7 @@ export const useKeyPairManagement = ({
   setShowCreateKeyPair
 }: UseKeyPairManagementProps) => {
   const handleCreateKeyPair = useCallback(() => {
-    setEditKeyPair({ publicKey: '', privateKey: '', note: '' })
+    setEditKeyPair({ publicKey: '', mnemonic: '', note: '' })
     setShowCreateKeyPair(true)
   }, [setEditKeyPair, setShowCreateKeyPair])
 
@@ -27,13 +27,13 @@ export const useKeyPairManagement = ({
     if (keyPair.index !== undefined) {
       newKeyPairs[keyPair.index] = {
         publicKey: keyPair.publicKey,
-        privateKey: keyPair.privateKey,
+        mnemonic: keyPair.mnemonic,
         note: keyPair.note || ''
       }
     } else {
       newKeyPairs.push({
         publicKey: keyPair.publicKey,
-        privateKey: keyPair.privateKey,
+        mnemonic: keyPair.mnemonic,
         note: keyPair.note || ''
       })
     }
@@ -50,24 +50,29 @@ export const useKeyPairManagement = ({
     toast.success('Key pair deleted successfully')
   }, [keyPairs, setKeyPairs])
 
-  const handleCopyKey = useCallback((key: string, type: 'public' | 'private') => {
+  const handleCopyKey = useCallback((key: string, type: 'public' | 'mnemonic') => {
     if (key) {
-      navigator.clipboard.writeText(key)
-      toast.success(`${type === 'public' ? 'Public' : 'Private'} key copied to clipboard`)
+      navigator.clipboard.writeText(key).then(() => {
+        toast.success(`${type === 'public' ? 'Public key' : 'Mnemonic'} copied to clipboard`)
+      }).catch(() => {
+        toast.error(`Failed to copy ${type === 'public' ? 'public key' : 'mnemonic'}`)
+      })
     } else {
-      toast.error('Key is empty, cannot copy')
+      toast.error(`${type === 'public' ? 'Public key' : 'Mnemonic'} is empty, cannot copy`)
     }
   }, [])
 
   const handleSaveNoteInTable = useCallback((index: number, note: string) => {
     const newKeyPairs = [...keyPairs]
-    newKeyPairs[index] = {
-      publicKey: newKeyPairs[index]?.publicKey || '',
-      privateKey: newKeyPairs[index]?.privateKey || '',
-      note
+    if (newKeyPairs[index]) {
+      newKeyPairs[index] = {
+        publicKey: newKeyPairs[index].publicKey,
+        mnemonic: newKeyPairs[index].mnemonic,
+        note
+      }
+      setKeyPairs(newKeyPairs)
+      toast.success('Note updated successfully')
     }
-    setKeyPairs(newKeyPairs)
-    toast.success('Note updated successfully')
   }, [keyPairs, setKeyPairs])
 
   return {
