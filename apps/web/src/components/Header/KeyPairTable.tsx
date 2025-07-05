@@ -112,7 +112,7 @@ export const KeyPairTable = ({
                         <Button variant="ghost" size="icon" onClick={() => onCopyPublic(keyPair.publicKey)}>
                           <Copy className="size-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleLink(keyPair.privateKey)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleLink(keyPair.publicKey)}>
                           <Link className="size-4" />
                         </Button>
                       </div>
@@ -125,7 +125,7 @@ export const KeyPairTable = ({
                         <Button variant="ghost" size="icon" onClick={() => onCopyPublic(keyPair.publicKey)}>
                           <Copy className="size-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleLink(keyPair.privateKey)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleLink(keyPair.publicKey)}>
                           <Link className="size-4" />
                         </Button>
                       </div>

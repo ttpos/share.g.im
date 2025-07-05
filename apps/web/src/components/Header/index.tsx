@@ -21,7 +21,7 @@ import { KeysTab } from '@/components/Header/KeysTab'
 import { PublicKeyForm } from '@/components/Header/PublicKeyForm'
 import { SecurityPasswordTab } from '@/components/Header/SecurityPasswordTab'
 import { TABS, STORAGE_KEYS } from '@/constants'
-import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { useSecureLocalStorage } from '@/hooks'
 import { validatePublicKey } from '@/lib/key'
 import { PublicKey, KeyPair, TabType } from '@/types'
 
@@ -36,18 +36,18 @@ export default function Header() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   // Public key management state
-  const [publicKeys, setPublicKeys, removePublicKeys] = useLocalStorage<PublicKey[]>(STORAGE_KEYS.PUBLIC_KEYS, [])
+  const [publicKeys, setPublicKeys, removePublicKeys] = useSecureLocalStorage<PublicKey[]>(STORAGE_KEYS.PUBLIC_KEYS, [])
   const [showAddKey, setShowAddKey] = useState(false)
   const [editKey, setEditKey] = useState<PublicKey | null>(null)
   const [validationError, setValidationError] = useState('')
 
   // Key pair management state
-  const [keyPairs, setKeyPairs, removeKeyPairs] = useLocalStorage<KeyPair[]>(STORAGE_KEYS.KEY_PAIRS, [])
+  const [keyPairs, setKeyPairs, removeKeyPairs] = useSecureLocalStorage<KeyPair[]>(STORAGE_KEYS.KEY_PAIRS, [])
   const [showCreateKeyPair, setShowCreateKeyPair] = useState(false)
   const [editKeyPair, setEditKeyPair] = useState<KeyPair | null>(null)
 
   // Password management state
-  const [storedPasswordHash, setStoredPasswordHash, removePasswordHash] = useLocalStorage<string | null>(STORAGE_KEYS.PASSWORD_HASH, null)
+  const [storedPasswordHash, setStoredPasswordHash, removePasswordHash] = useSecureLocalStorage<string | null>(STORAGE_KEYS.PASSWORD_HASH, null)
   const [showChangePassword, setShowChangePassword] = useState(false)
 
   // Reset all states function
