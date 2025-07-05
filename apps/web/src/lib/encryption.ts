@@ -25,6 +25,7 @@ const xorDecrypt = (encryptedData: string, key: string): string => {
     }
     return result
   } catch (error) {
+    console.error('Decryption failed:', error)
     throw new Error('Failed to decrypt data')
   }
 }
@@ -71,6 +72,7 @@ export const decryptFromStorage = async (encryptedData: string): Promise<string>
 
 // Enhanced localStorage utilities with encryption
 export const secureStorage = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setItem: async (key: string, value: any): Promise<void> => {
     try {
       const serializedValue = JSON.stringify(value)

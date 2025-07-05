@@ -1,13 +1,13 @@
+/* eslint-disable import/order */
 /* eslint-disable no-unused-vars */
 
 import { Button } from '@ttpos/share-ui'
 import { useCallback } from 'react'
 
 import { EmptyState } from '@/components/Header/EmptyState'
+import { PublicKeyTable } from '@/components/Header/PublicKeyTable'
 import { usePublicKeyManagement } from '@/hooks'
 import { PublicKey } from '@/types'
-
-import { PublicKeyTable } from '@/components/Header/PublicKeyTable'
 
 interface ExternalPublicKeysTabProps {
   publicKeys: PublicKey[]
