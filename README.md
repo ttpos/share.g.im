@@ -44,6 +44,7 @@ SecureVault is a Next.js-based client-side file encryption/decryption tool desig
 - **HTTPS**: Ensure HTTPS is used in production to secure file uploads and downloads.
 - **Key Management**: Users should securely manage their mnemonic phrases and private keys. Consider using a secure wallet or key management system for long-term storage.
 - **Client-Side Risks**: Since operations are client-side, ensure the client environment (e.g., browser) is free from malware or extensions that could access sensitive data like mnemonic phrases or private keys.
+- 
 
 ## 📜 License
 
