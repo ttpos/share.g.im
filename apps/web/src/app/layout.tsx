@@ -30,11 +30,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'SecureVault',
     description: 'SecureVault uses ECIES for secure and efficient file encryption and decryption.',
-    url: 'https://share.g.im',
+    url: 'https://ns.io/',
     siteName: 'SecureVault',
     // images: [
     //   {
-    //     url: 'https://share.g.im/og-image.jpg',
+    //     url: 'https://ns.io/og-image.jpg',
     //     width: 1200,
     //     height: 630,
     //     alt: 'SecureVault'
@@ -48,15 +48,11 @@ export const metadata: Metadata = {
     title: 'SecureVault',
     description: 'SecureVault uses ECIES for secure and efficient file encryption and decryption.',
     creator: '@ttpos'
-    // images: ['https://share.g.im/twitter-image.jpg']
+    // images: ['https://ns.io/twitter-image.jpg']
   },
-  // icons: {
-  //   icon: '/favicon.ico',
-  //   shortcut: '/favicon.ico',
-  //   apple: '/apple-touch-icon.png'
-  // },
+  icons: '/logo.svg',
   alternates: {
-    canonical: 'https://share.g.im'
+    canonical: 'https://ns.io/'
   }
 }
 
