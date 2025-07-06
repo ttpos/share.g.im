@@ -1,101 +1,85 @@
-import { hashPasswordFn } from '@ttpos/share-utils'
-
-// Fixed password for client storage encryption
-const STORAGE_PASSWORD = 'TTPOS_SECURE_VAULT_2024_STORAGE_KEY'
-
-// Simple XOR encryption using hashed password as key
-const xorEncrypt = (data: string, key: string): string => {
-  let result = ''
-  for (let i = 0; i < data.length; i++) {
-    const keyChar = key.charCodeAt(i % key.length)
-    const dataChar = data.charCodeAt(i)
-    result += String.fromCharCode(dataChar ^ keyChar)
-  }
-  return btoa(result) // Base64 encode
-}
-
-const xorDecrypt = (encryptedData: string, key: string): string => {
-  try {
-    const data = atob(encryptedData) // Base64 decode
-    let result = ''
-    for (let i = 0; i < data.length; i++) {
-      const keyChar = key.charCodeAt(i % key.length)
-      const dataChar = data.charCodeAt(i)
-      result += String.fromCharCode(dataChar ^ keyChar)
-    }
-    return result
-  } catch (error) {
-    console.error('Decryption failed:', error)
-    throw new Error('Failed to decrypt data')
-  }
-}
-
-// Get encryption key from fixed password
-let cachedEncryptionKey: string | null = null
-
-const getEncryptionKey = async (): Promise<string> => {
-  if (cachedEncryptionKey) {
-    return cachedEncryptionKey
-  }
+// Check if string is valid Base64
+const isBase64 = (str: string): boolean => {
+  if (!str || str.length === 0) return false
+  
+  // Basic Base64 pattern check
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/
+  if (!base64Regex.test(str)) return false
+  
+  // Check if length is valid for Base64 (must be multiple of 4)
+  if (str.length % 4 !== 0) return false
   
   try {
-    // Use hashPasswordFn to create a consistent encryption key
-    cachedEncryptionKey = await hashPasswordFn(STORAGE_PASSWORD)
-    return cachedEncryptionKey
-  } catch (error) {
-    console.error('Failed to generate encryption key:', error)
-    throw new Error('Failed to generate encryption key')
+    atob(str)
+    return true
+  } catch {
+    return false
   }
 }
 
-// Encrypt data for localStorage
-export const encryptForStorage = async (data: string): Promise<string> => {
+// Simple Base64 encode for storage
+const encodeForStorage = (data: string): string => {
   try {
-    const encryptionKey = await getEncryptionKey()
-    return xorEncrypt(data, encryptionKey)
+    return btoa(unescape(encodeURIComponent(data)))
   } catch (error) {
-    console.error('Storage encryption failed:', error)
-    throw new Error('Failed to encrypt data for storage')
+    console.error('Encoding error:', error)
+    throw new Error('Failed to encode data for storage')
   }
 }
 
-// Decrypt data from localStorage
-export const decryptFromStorage = async (encryptedData: string): Promise<string> => {
+// Simple Base64 decode from storage
+const decodeFromStorage = (encodedData: string): string => {
   try {
-    const encryptionKey = await getEncryptionKey()
-    return xorDecrypt(encryptedData, encryptionKey)
+    return decodeURIComponent(escape(atob(encodedData)))
   } catch (error) {
-    console.error('Storage decryption failed:', error)
-    throw new Error('Failed to decrypt data from storage')
+    console.error('Decoding error:', error)
+    throw new Error('Failed to decode data from storage')
   }
 }
 
-// Enhanced localStorage utilities with encryption
+// Enhanced localStorage utilities with Base64 encoding
 export const secureStorage = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setItem: async (key: string, value: any): Promise<void> => {
     try {
       const serializedValue = JSON.stringify(value)
-      const encryptedValue = await encryptForStorage(serializedValue)
-      localStorage.setItem(key, encryptedValue)
+      const encodedValue = encodeForStorage(serializedValue)
+      localStorage.setItem(key, encodedValue)
     } catch (error) {
-      console.error(`Failed to securely store ${key}:`, error)
+      console.error('Storage error:', error)
       throw new Error(`Failed to store ${key}`)
     }
   },
 
   getItem: async <T>(key: string, defaultValue: T): Promise<T> => {
     try {
-      const encryptedValue = localStorage.getItem(key)
-      if (!encryptedValue) {
+      const storedValue = localStorage.getItem(key)
+      if (!storedValue) {
         return defaultValue
       }
       
-      const decryptedValue = await decryptFromStorage(encryptedValue)
-      return JSON.parse(decryptedValue) as T
-    } catch (error) {
-      console.error(`Failed to securely retrieve ${key}:`, error)
-      // Return default value if decryption fails (might be old unencrypted data)
+      // Check if it looks like Base64 encoded data
+      if (isBase64(storedValue)) {
+        try {
+          const decodedValue = decodeFromStorage(storedValue)
+          return JSON.parse(decodedValue) as T
+        } catch {
+          // If decoding fails, treat as corrupted and use default
+          return defaultValue
+        }
+      } else {
+        // Data doesn't look encoded, try parsing as old unencrypted JSON
+        try {
+          const parsedValue = JSON.parse(storedValue) as T
+          // Successfully parsed old data, now encode and save it
+          await secureStorage.setItem(key, parsedValue)
+          return parsedValue
+        } catch {
+          // Failed to parse, use default value
+          return defaultValue
+        }
+      }
+    } catch {
       return defaultValue
     }
   },
@@ -104,7 +88,7 @@ export const secureStorage = {
     try {
       localStorage.removeItem(key)
     } catch (error) {
-      console.error(`Failed to remove ${key}:`, error)
+      console.error('Storage error:', error)
       throw new Error(`Failed to remove ${key}`)
     }
   },
@@ -112,14 +96,46 @@ export const secureStorage = {
   // Check if stored data exists and is valid
   hasValidItem: async (key: string): Promise<boolean> => {
     try {
-      const encryptedValue = localStorage.getItem(key)
-      if (!encryptedValue) return false
+      const storedValue = localStorage.getItem(key)
+      if (!storedValue) return false
       
-      // Try to decrypt to validate
-      await decryptFromStorage(encryptedValue)
-      return true
+      // Check if it's valid Base64 encoded data
+      if (isBase64(storedValue)) {
+        try {
+          decodeFromStorage(storedValue)
+          return true
+        } catch {
+          return false
+        }
+      } else {
+        // Check if it's valid unencrypted JSON
+        try {
+          JSON.parse(storedValue)
+          return true
+        } catch {
+          return false
+        }
+      }
     } catch {
       return false
     }
+  },
+
+  // Clear all corrupted data (utility function)
+  clearCorruptedData: (keys: string[]): void => {
+    keys.forEach(key => {
+      try {
+        const storedValue = localStorage.getItem(key)
+        if (storedValue && isBase64(storedValue)) {
+          try {
+            decodeFromStorage(storedValue)
+          } catch {
+            localStorage.removeItem(key)
+          }
+        }
+      } catch {
+        // Silently ignore errors during cleanup
+      }
+    })
   }
 }

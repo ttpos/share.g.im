@@ -2,12 +2,14 @@
 /* eslint-disable no-unused-vars */
 
 import { Button } from '@ttpos/share-ui'
+import { Plus } from 'lucide-react'
 import { useCallback } from 'react'
 
 import { EmptyState } from '@/components/Header/EmptyState'
-import { PublicKeyTable } from '@/components/Header/PublicKeyTable'
 import { usePublicKeyManagement } from '@/hooks'
 import { PublicKey } from '@/types'
+
+import { PublicKeyTable } from '@/components/Header/PublicKeyTable'
 
 interface ExternalPublicKeysTabProps {
   publicKeys: PublicKey[]
@@ -44,7 +46,8 @@ export const ExternalPublicKeysTab = ({
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">External Public Keys</h2>
         {publicKeys.length > 0 && (
           <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleAddPublicKey}>
-            Add External Public Key
+            <Plus className="size-4 sm:hidden" />
+            <span className="hidden sm:inline">Add External Public Key</span>
           </Button>
         )}
       </div>

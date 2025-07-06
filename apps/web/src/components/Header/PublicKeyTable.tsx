@@ -154,10 +154,10 @@ export const PublicKeyTable = ({
                         Are you sure you want to delete this public key? This action cannot be undone.
                       </p>
                       <div className="flex justify-end gap-2 sm:gap-3">
-                        <Button variant="outline" onClick={handleCancelDelete}>
+                        <Button variant="outline" size="sm" onClick={handleCancelDelete}>
                           Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleConfirmDelete}>
+                        <Button variant="destructive" size="sm" onClick={handleConfirmDelete}>
                           Delete
                         </Button>
                       </div>
