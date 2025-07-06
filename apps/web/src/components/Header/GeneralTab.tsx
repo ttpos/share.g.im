@@ -14,11 +14,12 @@ import {
   Label,
   CustomOtpInput
 } from '@ttpos/share-ui'
-import { hashPasswordFn } from '@ttpos/share-utils'
+import { hashPasswordFn, downloadFile } from '@ttpos/share-utils'
 import { Info } from 'lucide-react'
 import { useCallback, useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 
+import pageJson from '@/../package.json'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { PublicKey, KeyPair } from '@/types'
 
@@ -73,7 +74,7 @@ export const GeneralTab = ({
   // Create backup data
   const createBackupData = useCallback((): BackupData => {
     return {
-      version: '1.0.0',
+      version: pageJson.version,
       timestamp: new Date().toISOString(),
       publicKeys,
       keyPairs,
@@ -128,19 +129,12 @@ export const GeneralTab = ({
       const exportObject = {
         data: encryptedResult.base64, // Use encrypted base64 string from cryptoWorker
         passwordHash: hashedPassword,
-        version: '1.0.0'
+        version: pageJson.version
       }
 
-      // Create and download the encrypted file
       const blob = new Blob([JSON.stringify(exportObject)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `vault_backup_${new Date().toISOString().split('T')[0]}.enc`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const fileName = `vault_backup_${new Date().toISOString().split('T')[0]}.enc`
+      downloadFile(blob, fileName)
 
       setIsExportDialogOpen(false)
       setExportPassword('')

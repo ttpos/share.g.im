@@ -17,7 +17,7 @@ import {
   HoverCardContent,
   HoverCardTrigger
 } from '@ttpos/share-ui'
-import { sliceAddress } from '@ttpos/share-utils'
+import { downloadFile, sliceAddress } from '@ttpos/share-utils'
 import { Copy, Pencil, Trash2, Info, Link, Download } from 'lucide-react'
 import { useState } from 'react'
 
@@ -92,14 +92,8 @@ export const KeyPairTable = ({
   const handleDownloadMnemonic = (mnemonic: string, index: number) => {
     if (mnemonic) {
       const blob = new Blob([mnemonic], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `mnemonic_${index + 1}.txt`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const fileName = `mnemonic_${index + 1}.txt`
+      downloadFile(blob, fileName)
     }
   }
 

@@ -14,6 +14,7 @@ import {
 import {
   deriveKeyPair,
   detect,
+  downloadFile,
   formatFileSize,
   isBase58String,
   isHexString,
@@ -188,18 +189,6 @@ export default function HomePage() {
       toast.success(`${processMode === 'encrypt' ? 'Encrypted' : 'Decrypted'} ${inputType === 'file' ? 'file' : 'text'} downloaded successfully`)
     }
   }, [encryptedData, inputType, fileInfo, processMode])
-
-  const downloadFile = (data: Blob, filename: string) => {
-    const url = URL.createObjectURL(data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
 
   const handleCopy = () => {
     if (textResult) {

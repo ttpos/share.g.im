@@ -18,7 +18,8 @@ import {
   isBase58String,
   isHexString,
   isMnemonicPhrase,
-  validateBase58PublicKey
+  validateBase58PublicKey,
+  downloadFile
 } from '@ttpos/share-utils'
 import { Download, RefreshCw, X, Copy } from 'lucide-react'
 import Image from 'next/image'
@@ -187,18 +188,6 @@ export default function HomePage() {
       toast.success(`${processMode === 'encrypt' ? 'Encrypted' : 'Decrypted'} ${inputType === 'file' ? 'file' : 'text'} downloaded successfully`)
     }
   }, [encryptedData, inputType, fileInfo, processMode])
-
-  const downloadFile = (data: Blob, filename: string) => {
-    const url = URL.createObjectURL(data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
 
   const handleCopy = () => {
     if (textResult) {
