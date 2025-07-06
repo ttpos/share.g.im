@@ -15,56 +15,50 @@ export const useSecureLocalStorage = <T,>(key: string, initialValue: T) => {
 
     const loadData = async () => {
       try {
-        // Try to get encrypted data
         const storedValue = await secureStorage.getItem(key, initialValue)
         setValue(storedValue)
-        setIsLoaded(true)
       } catch (error) {
-        console.error(`Failed to load encrypted ${key} from localStorage:`, error)
-        
-        // Try to migrate from old unencrypted data
-        try {
-          const oldData = localStorage.getItem(key)
-          if (oldData) {
-            const parsedOldData = JSON.parse(oldData) as T
-            // Save as encrypted and remove old data
-            await secureStorage.setItem(key, parsedOldData)
-            localStorage.removeItem(key + '_unencrypted') // Clean old unencrypted backup
-            setValue(parsedOldData)
-            toast.success('Data migrated to secure storage')
-          }
-        } catch (migrationError) {
-          console.error('Migration from old storage failed:', migrationError)
-          toast.error('Failed to load data from storage')
-        }
-        
+        console.error('Error loading data from storage:', error)
+        // Use initial value on error
+        setValue(initialValue)
+        toast.error('Failed to load data from storage')
+      } finally {
         setIsLoaded(true)
       }
     }
 
     loadData()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [key])
 
   const setStoredValue = useCallback((newValue: T | ((prev: T) => T)) => {
-    // Handle function updates
-    const resolvedValue = typeof newValue === 'function' 
-      ? (newValue as (prev: T) => T)(value) 
-      : newValue
+    try {
+      // Handle function updates
+      const resolvedValue = typeof newValue === 'function' 
+        ? (newValue as (prev: T) => T)(value) 
+        : newValue
 
-    // Update state immediately (synchronous)
-    setValue(resolvedValue)
-    
-    // Save to storage asynchronously (don't await)
-    secureStorage.setItem(key, resolvedValue).catch(error => {
-      console.error(`Failed to save encrypted ${key} to localStorage:`, error)
-      toast.error('Failed to save data to storage')
-    })
+      // Update state immediately (synchronous)
+      setValue(resolvedValue)
+      
+      // Save to storage asynchronously (don't await)
+      secureStorage.setItem(key, resolvedValue).catch(() => {
+        toast.error('Failed to save data to storage')
+      })
+    } catch (error) {
+      console.error('Error setting value in storage:', error)
+      toast.error('Failed to update data')
+    }
   }, [key, value])
 
   const removeStoredValue = useCallback(() => {
-    setValue(initialValue)
-    secureStorage.removeItem(key)
+    try {
+      setValue(initialValue)
+      secureStorage.removeItem(key)
+    } catch (error) {
+      console.error('Error removing value from storage:', error)
+      toast.error('Failed to remove data')
+    }
   }, [key, initialValue])
 
   return [value, setStoredValue, removeStoredValue, isLoaded] as const

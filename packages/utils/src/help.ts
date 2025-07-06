@@ -169,3 +169,19 @@ export const sliceAddress = (
   return `${address.slice(0, startLength)}...${address.slice(-endLength)}`
 }
 
+/**
+ * Downloads a file with the given data and filename
+ * @param data - The Blob data to download
+ * @param filename - The name of the file to download
+ */
+export const downloadFile = (data: Blob, filename: string) => {
+  const url = URL.createObjectURL(data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}

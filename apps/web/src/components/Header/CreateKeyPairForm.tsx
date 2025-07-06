@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { Button, Label, Input } from '@ttpos/share-ui'
-import { deriveKeyPair } from '@ttpos/share-utils'
+import { deriveKeyPair, downloadFile } from '@ttpos/share-utils'
 import { Copy, Download, RefreshCw } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
@@ -90,14 +90,9 @@ export const CreateKeyPairForm = ({
   const downloadMnemonic = useCallback(() => {
     if (mnemonic) {
       const blob = new Blob([mnemonic], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'mnemonic.txt'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const fileName = 'mnemonic.txt'
+      downloadFile(blob, fileName)
+
       toast.success('Mnemonic downloaded')
     }
   }, [mnemonic])

@@ -123,10 +123,10 @@ export const PublicKeyTable = ({
                           placeholder="Optional note for this public key"
                         />
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" onClick={handleCancelNote}>
+                          <Button variant="outline" size="sm" onClick={handleCancelNote}>
                             Cancel
                           </Button>
-                          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveNote}>
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveNote}>
                             Save
                           </Button>
                         </div>
@@ -154,10 +154,10 @@ export const PublicKeyTable = ({
                         Are you sure you want to delete this public key? This action cannot be undone.
                       </p>
                       <div className="flex justify-end gap-2 sm:gap-3">
-                        <Button variant="outline" onClick={handleCancelDelete}>
+                        <Button variant="outline" size="sm" onClick={handleCancelDelete}>
                           Cancel
                         </Button>
-                        <Button variant="destructive" onClick={handleConfirmDelete}>
+                        <Button variant="destructive" size="sm" onClick={handleConfirmDelete}>
                           Delete
                         </Button>
                       </div>

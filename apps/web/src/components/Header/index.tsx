@@ -11,7 +11,7 @@ import {
 } from '@ttpos/share-ui'
 import { Settings, Lock, X, ChevronLeft } from 'lucide-react'
 import Image from 'next/image'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 
 import { ExternalPublicKeysTab } from '@/components/Header/ExternalPublicKeysTab'
@@ -139,8 +139,8 @@ export default function Header() {
           onCancel={() => setShowImportDialog(false)}
           setPublicKeys={setPublicKeys}
           setKeyPairs={setKeyPairs}
+          setStoredPasswordHash={setStoredPasswordHash}
         />
-      // setStoredPasswordHash={setStoredPasswordHash}
       )
     }
 
