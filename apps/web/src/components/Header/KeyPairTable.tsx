@@ -174,10 +174,10 @@ export const KeyPairTable = ({
                           placeholder="Optional note for this key pair"
                         />
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" onClick={handleCancelNote}>
+                          <Button variant="outline" size="sm" onClick={handleCancelNote}>
                             Cancel
                           </Button>
-                          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveNote}>
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveNote}>
                             Save
                           </Button>
                         </div>

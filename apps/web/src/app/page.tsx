@@ -21,14 +21,16 @@ import {
   validateBase58PublicKey,
   downloadFile
 } from '@ttpos/share-utils'
-import { Download, RefreshCw, X, Copy } from 'lucide-react'
+import { Download, RefreshCw, X, Copy, Eye, ChevronDown, Check } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import HowItWorksSection from '@/components/HowItWorksSection'
+import { STORAGE_KEYS } from '@/constants'
+import { useSecureLocalStorage } from '@/hooks'
 import { generateDownloadFilename } from '@/lib/utils'
-import { FileInfo } from '@/types'
+import { FileInfo, PublicKey, KeyPair } from '@/types'
 
 export default function HomePage() {
   const [inputType, setInputType] = useState<'file' | 'message'>('message')
@@ -42,8 +44,75 @@ export default function HomePage() {
   const [progress, setProgress] = useState(0)
   const [processMode, setProcessMode] = useState<'encrypt' | 'decrypt'>('encrypt')
   const [isDragOver, setIsDragOver] = useState(false)
+  
+  // Key matching states
+  const [showKeyDropdown, setShowKeyDropdown] = useState(false)
+  const [matchedKeys, setMatchedKeys] = useState<(PublicKey | KeyPair)[]>([])
+  const [isKeyInputFocused, setIsKeyInputFocused] = useState(false)
+
   const workerRef = useRef<Worker | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const keyInputRef = useRef<HTMLInputElement>(null)
+
+  // Load stored keys
+  const [publicKeys, , , isPublicKeysLoaded] = useSecureLocalStorage<PublicKey[]>(STORAGE_KEYS.PUBLIC_KEYS, [])
+  const [keyPairs, , , isKeyPairsLoaded] = useSecureLocalStorage<KeyPair[]>(STORAGE_KEYS.KEY_PAIRS, [])
+  
+  // Fresh keys state for real-time updates
+  const [freshPublicKeys, setFreshPublicKeys] = useState<PublicKey[]>([])
+  const [freshKeyPairs, setFreshKeyPairs] = useState<KeyPair[]>([])
+  
+  // Refresh keys from storage
+  const refreshKeysFromStorage = useCallback(async () => {
+    try {
+      const { secureStorage } = await import('@/lib/encryption')
+      const freshPubKeys = await secureStorage.getItem(STORAGE_KEYS.PUBLIC_KEYS, [])
+      const freshKeyPairsData = await secureStorage.getItem(STORAGE_KEYS.KEY_PAIRS, [])
+      setFreshPublicKeys(freshPubKeys)
+      setFreshKeyPairs(freshKeyPairsData)
+    } catch (error) {
+      console.error('Failed to refresh keys:', error)
+    }
+  }, [])
+  
+  // Initial load and periodic refresh
+  useEffect(() => {
+    if (isPublicKeysLoaded && isKeyPairsLoaded) {
+      setFreshPublicKeys(publicKeys)
+      setFreshKeyPairs(keyPairs)
+    }
+  }, [publicKeys, keyPairs, isPublicKeysLoaded, isKeyPairsLoaded])
+  
+  // Refresh when component becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshKeysFromStorage()
+      }
+    }
+    
+    const handleFocus = () => {
+      refreshKeysFromStorage()
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [refreshKeysFromStorage])
+  
+  // Refresh when key input gets focus (most reliable for user interaction)
+  const handleKeyInputFocus = useCallback(() => {
+    setIsKeyInputFocused(true)
+    // Refresh keys when user starts typing
+    refreshKeysFromStorage()
+    if (matchedKeys.length > 0) {
+      setShowKeyDropdown(true)
+    }
+  }, [matchedKeys.length, refreshKeysFromStorage])
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../workers/cryptoWorker.ts', import.meta.url))
@@ -58,8 +127,23 @@ export default function HomePage() {
         if (pubKey && isBase58String(pubKey)) {
           const validation = validateBase58PublicKey(pubKey)
           if (validation.isValid) {
-            setKeyInput(pubKey)
-            setProcessMode('encrypt')
+            if (processMode === 'encrypt') {
+              setKeyInput(pubKey)
+            } else {
+              // For decrypt mode, find matching key pair and use mnemonic/private key
+              const matchingKeyPair = keyPairs.find(kp => kp.publicKey === pubKey)
+              if (matchingKeyPair) {
+                if (matchingKeyPair.mnemonic) {
+                  setKeyInput(matchingKeyPair.mnemonic)
+                } else {
+                  // If no mnemonic, we'd need the private key (not stored in our current structure)
+                  setKeyInput(pubKey) // Fallback to public key
+                }
+              } else {
+                setKeyInput('')
+                toast.info('No matching private key found for this public key')
+              }
+            }
           } else {
             setKeyInput('')
           }
@@ -72,7 +156,105 @@ export default function HomePage() {
     handleHashChange()
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [processMode, keyPairs])
+
+  // Handle key input change and matching
+  const handleKeyInputChange = useCallback((value: string) => {
+    setKeyInput(value)
+    
+    if (!value.trim()) {
+      setMatchedKeys([])
+      setShowKeyDropdown(false)
+      return
+    }
+
+    // Find matching keys (use fresh keys for real-time updates)
+    const matches: (PublicKey | KeyPair)[] = []
+    
+    if (processMode === 'encrypt') {
+      // For encryption: only match External Public Keys
+      freshPublicKeys.forEach(key => {
+        if (key.publicKey.toLowerCase().includes(value.toLowerCase()) ||
+            key.note?.toLowerCase().includes(value.toLowerCase())) {
+          matches.push(key)
+        }
+      })
+    } else {
+      // For decryption: only match Keys (key pairs with private keys/mnemonics)
+      freshKeyPairs.forEach(keyPair => {
+        if (keyPair.mnemonic?.toLowerCase().includes(value.toLowerCase()) ||
+            keyPair.publicKey.toLowerCase().includes(value.toLowerCase()) ||
+            keyPair.note?.toLowerCase().includes(value.toLowerCase())) {
+          matches.push(keyPair)
+        }
+      })
+    }
+
+    setMatchedKeys(matches)
+    setShowKeyDropdown(matches.length > 0 && isKeyInputFocused)
+  }, [processMode, freshPublicKeys, freshKeyPairs, isKeyInputFocused])
+
+  // Handle key selection from dropdown
+  const handleKeySelect = useCallback((selectedKey: PublicKey | KeyPair) => {
+    if (processMode === 'encrypt') {
+      setKeyInput(selectedKey.publicKey)
+    } else {
+      // For decryption, use mnemonic if available, otherwise publicKey
+      if ('mnemonic' in selectedKey && selectedKey.mnemonic) {
+        setKeyInput(selectedKey.mnemonic)
+      } else {
+        setKeyInput(selectedKey.publicKey)
+      }
+    }
+    setShowKeyDropdown(false)
+    setIsKeyInputFocused(false)
+    keyInputRef.current?.blur()
+  }, [processMode])
+
+  // Handle key input blur
+  const handleKeyInputBlur = useCallback(() => {
+    // Delay hiding dropdown to allow click on items
+    setTimeout(() => {
+      setIsKeyInputFocused(false)
+      setShowKeyDropdown(false)
+    }, 200)
   }, [])
+
+  // Get display text for key item
+  const getKeyDisplayText = useCallback((key: PublicKey | KeyPair) => {
+    if (processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic) {
+      // For decryption, show mnemonic with truncation
+      const words = key.mnemonic.split(' ')
+      if (words.length > 6) {
+        return `${words.slice(0, 3).join(' ')}...${words.slice(-3).join(' ')}`
+      }
+      return key.mnemonic
+    }
+    // For encryption or when no mnemonic, show public key
+    return `${key.publicKey.substring(0, 8)}...${key.publicKey.substring(-8)}`
+  }, [processMode])
+
+  // Get secondary display text (note or public key)
+  const getKeySecondaryText = useCallback((key: PublicKey | KeyPair) => {
+    if (processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic) {
+      // For decryption with mnemonic, show public key as secondary
+      return key.publicKey
+    }
+    // For encryption or when no mnemonic, show note as secondary
+    return key.note || ''
+  }, [processMode])
+
+  // Get matched public key for display (when in decrypt mode)
+  const getMatchedPublicKey = useCallback(() => {
+    if (processMode === 'decrypt' && keyInput) {
+      // Find the matching key pair by mnemonic or private key
+      const matchingKeyPair = freshKeyPairs.find(kp => 
+        kp.mnemonic === keyInput || kp.publicKey === keyInput
+      )
+      return matchingKeyPair?.publicKey || null
+    }
+    return null
+  }, [processMode, keyInput, freshKeyPairs])
 
   const triggerFileInput = () => {
     fileInputRef.current?.click()
@@ -208,6 +390,9 @@ export default function HomePage() {
     setSelectedFile(null)
     setTextInput('')
     setIsDragOver(false)
+    setShowKeyDropdown(false)
+    setMatchedKeys([])
+    setIsKeyInputFocused(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -479,20 +664,98 @@ export default function HomePage() {
               <div className="flex flex-col items-center w-full max-w-[90vw] sm:max-w-2xl">
                 <div className="w-full sm:w-3/4 space-y-6 sm:space-y-8">
                   {!encryptedData && (
-                    <div className="space-y-2">
-                      <Label className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200">
-                        {processMode === 'encrypt' ? 'Public Key' : 'Private Key or Mnemonic'}
-                      </Label>
-                      <PasswordInput
-                        value={keyInput}
-                        onChange={(e) => setKeyInput(e.target.value)}
-                        placeholder={
-                          processMode === 'encrypt'
-                            ? 'Enter Base58 public key (approx. 44-45 characters)'
-                            : 'Enter private key or mnemonic phrase'
-                        }
-                        className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
-                      />
+                    <div className="space-y-4">
+                      <div className="space-y-2 relative">
+                        <Label className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200">
+                          {processMode === 'encrypt' ? 'Public Key' : 'Private Key or Mnemonic'}
+                        </Label>
+                        <div className="relative">
+                          <PasswordInput
+                            ref={keyInputRef}
+                            value={keyInput}
+                            onChange={(e) => handleKeyInputChange(e.target.value)}
+                            onFocus={handleKeyInputFocus}
+                            onBlur={handleKeyInputBlur}
+                            placeholder={
+                              processMode === 'encrypt'
+                                ? 'Enter Base58 public key (approx. 44-45 characters)'
+                                : 'Enter private key or mnemonic phrase'
+                            }
+                            className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
+                          />
+                          {matchedKeys.length > 0 && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                              <ChevronDown className="w-4 h-4 text-gray-400" />
+                            </div>
+                          )}
+                          
+                          {/* Key matching dropdown */}
+                          {showKeyDropdown && matchedKeys.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                              <div className="p-2">
+                                <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
+                                  <Eye className="w-4 h-4" />
+                                  <span>{processMode === 'encrypt' ? 'Public Key' : 'Private Key'}</span>
+                                </div>
+                                {matchedKeys.map((key, index) => {
+                                  const displayText = getKeyDisplayText(key)
+                                  const secondaryText = getKeySecondaryText(key)
+                                  const isSelected = processMode === 'encrypt' 
+                                    ? keyInput === key.publicKey
+                                    : ('mnemonic' in key && key.mnemonic) 
+                                      ? keyInput === key.mnemonic 
+                                      : keyInput === key.publicKey
+                                  
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer rounded-md"
+                                      onClick={() => handleKeySelect(key)}
+                                    >
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 font-mono truncate">
+                                          {displayText}
+                                        </div>
+                                        {secondaryText && (
+                                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                                            - {processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic 
+                                              ? secondaryText // Show public key for mnemonic entries
+                                              : secondaryText // Show note for public key entries
+                                            }
+                                          </div>
+                                        )}
+                                        {key.note && processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic && (
+                                          <div className="text-xs text-gray-400 dark:text-gray-500 truncate mt-1">
+                                            - {key.note}
+                                          </div>
+                                        )}
+                                      </div>
+                                      {isSelected && (
+                                        <Check className="w-4 h-4 text-blue-500 ml-2 flex-shrink-0" />
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Show matched public key in decrypt mode */}
+                      {processMode === 'decrypt' && getMatchedPublicKey() && (
+                        <div className="space-y-2">
+                          <Label className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200">
+                            Public Key
+                          </Label>
+                          <PasswordInput
+                            value={getMatchedPublicKey() || ''}
+                            readOnly
+                            className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 cursor-default"
+                            placeholder="Corresponding public key will appear here"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   {!encryptedData && (

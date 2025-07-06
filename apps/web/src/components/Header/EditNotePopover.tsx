@@ -48,10 +48,10 @@ export const EditNotePopover = ({
           placeholder={placeholder}
         />
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" size="sm" onClick={onCancel}>
             Cancel
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={onSave}>
+          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={onSave}>
             Save
           </Button>
         </div>
