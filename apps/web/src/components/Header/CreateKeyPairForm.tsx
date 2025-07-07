@@ -166,12 +166,11 @@ export const CreateKeyPairForm = ({
               Mnemonic Phrase
             </Label>
             <Button
-              variant="ghost"
               size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
               onClick={handleGenerateNewMnemonic}
-              className="text-xs"
             >
-              <Shuffle className="size-3 mr-1" />
+              <Shuffle className="size-4" />
               Generate New
             </Button>
           </div>
