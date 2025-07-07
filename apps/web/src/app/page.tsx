@@ -27,6 +27,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import HowItWorksSection from '@/components/HowItWorksSection'
+import TextInputArea from '@/components/TextInputArea'
 import { STORAGE_KEYS } from '@/constants'
 import { useSecureLocalStorage } from '@/hooks'
 import { generateDownloadFilename } from '@/lib/utils'
@@ -44,7 +45,7 @@ export default function HomePage() {
   const [progress, setProgress] = useState(0)
   const [processMode, setProcessMode] = useState<'encrypt' | 'decrypt'>('encrypt')
   const [isDragOver, setIsDragOver] = useState(false)
-  
+
   // Key matching states
   const [showKeyDropdown, setShowKeyDropdown] = useState(false)
   const [matchedKeys, setMatchedKeys] = useState<(PublicKey | KeyPair)[]>([])
@@ -57,11 +58,11 @@ export default function HomePage() {
   // Load stored keys
   const [publicKeys, , , isPublicKeysLoaded] = useSecureLocalStorage<PublicKey[]>(STORAGE_KEYS.PUBLIC_KEYS, [])
   const [keyPairs, , , isKeyPairsLoaded] = useSecureLocalStorage<KeyPair[]>(STORAGE_KEYS.KEY_PAIRS, [])
-  
+
   // Fresh keys state for real-time updates
   const [freshPublicKeys, setFreshPublicKeys] = useState<PublicKey[]>([])
   const [freshKeyPairs, setFreshKeyPairs] = useState<KeyPair[]>([])
-  
+
   // Refresh keys from storage
   const refreshKeysFromStorage = useCallback(async () => {
     try {
@@ -74,7 +75,7 @@ export default function HomePage() {
       console.error('Failed to refresh keys:', error)
     }
   }, [])
-  
+
   // Initial load and periodic refresh
   useEffect(() => {
     if (isPublicKeysLoaded && isKeyPairsLoaded) {
@@ -82,7 +83,7 @@ export default function HomePage() {
       setFreshKeyPairs(keyPairs)
     }
   }, [publicKeys, keyPairs, isPublicKeysLoaded, isKeyPairsLoaded])
-  
+
   // Refresh when component becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -90,20 +91,20 @@ export default function HomePage() {
         refreshKeysFromStorage()
       }
     }
-    
+
     const handleFocus = () => {
       refreshKeysFromStorage()
     }
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('focus', handleFocus)
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleFocus)
     }
   }, [refreshKeysFromStorage])
-  
+
   // Refresh when key input gets focus (most reliable for user interaction)
   const handleKeyInputFocus = useCallback(() => {
     setIsKeyInputFocused(true)
@@ -161,7 +162,7 @@ export default function HomePage() {
   // Handle key input change and matching
   const handleKeyInputChange = useCallback((value: string) => {
     setKeyInput(value)
-    
+
     if (!value.trim()) {
       setMatchedKeys([])
       setShowKeyDropdown(false)
@@ -170,12 +171,12 @@ export default function HomePage() {
 
     // Find matching keys (use fresh keys for real-time updates)
     const matches: (PublicKey | KeyPair)[] = []
-    
+
     if (processMode === 'encrypt') {
       // For encryption: only match External Public Keys
       freshPublicKeys.forEach(key => {
         if (key.publicKey.toLowerCase().includes(value.toLowerCase()) ||
-            key.note?.toLowerCase().includes(value.toLowerCase())) {
+          key.note?.toLowerCase().includes(value.toLowerCase())) {
           matches.push(key)
         }
       })
@@ -183,8 +184,8 @@ export default function HomePage() {
       // For decryption: only match Keys (key pairs with private keys/mnemonics)
       freshKeyPairs.forEach(keyPair => {
         if (keyPair.mnemonic?.toLowerCase().includes(value.toLowerCase()) ||
-            keyPair.publicKey.toLowerCase().includes(value.toLowerCase()) ||
-            keyPair.note?.toLowerCase().includes(value.toLowerCase())) {
+          keyPair.publicKey.toLowerCase().includes(value.toLowerCase()) ||
+          keyPair.note?.toLowerCase().includes(value.toLowerCase())) {
           matches.push(keyPair)
         }
       })
@@ -248,7 +249,7 @@ export default function HomePage() {
   const getMatchedPublicKey = useCallback(() => {
     if (processMode === 'decrypt' && keyInput) {
       // Find the matching key pair by mnemonic or private key
-      const matchingKeyPair = freshKeyPairs.find(kp => 
+      const matchingKeyPair = freshKeyPairs.find(kp =>
         kp.mnemonic === keyInput || kp.publicKey === keyInput
       )
       return matchingKeyPair?.publicKey || null
@@ -649,15 +650,11 @@ export default function HomePage() {
             </TabsContent>
             <TabsContent value="message" className="w-full max-w-[90vw] mt-0">
               <div className="py-4 sm:py-6 space-y-6">
-                <div className="bg-white dark:bg-[#282B30] rounded-xl backdrop-blur-sm border border-gray-200/50 dark:border-gray-700 p-6">
-                  <Textarea
-                    value={textInput}
-                    onChange={(e) => !textResult ? setTextInput(e.target.value) : undefined}
-                    readOnly={!!textResult}
-                    placeholder="Paste or enter text to encrypt or decrypt"
-                    className="h-[182px] sm:min-h-[234px] max-h-[234px] sm:max-h-[300px] font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-[#282B30] text-[#282B30] dark:text-gray-200 pr-3 sm:pr-4 pb-10 sm:pb-14"
-                  />
-                </div>
+                <TextInputArea
+                  textInput={textInput}
+                  textResult={textResult}
+                  onTextChange={setTextInput}
+                />
               </div>
             </TabsContent>
             {(selectedFile || textInput) && (
@@ -688,7 +685,7 @@ export default function HomePage() {
                               <ChevronDown className="w-4 h-4 text-gray-400" />
                             </div>
                           )}
-                          
+
                           {/* Key matching dropdown */}
                           {showKeyDropdown && matchedKeys.length > 0 && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
@@ -700,12 +697,12 @@ export default function HomePage() {
                                 {matchedKeys.map((key, index) => {
                                   const displayText = getKeyDisplayText(key)
                                   const secondaryText = getKeySecondaryText(key)
-                                  const isSelected = processMode === 'encrypt' 
+                                  const isSelected = processMode === 'encrypt'
                                     ? keyInput === key.publicKey
-                                    : ('mnemonic' in key && key.mnemonic) 
-                                      ? keyInput === key.mnemonic 
+                                    : ('mnemonic' in key && key.mnemonic)
+                                      ? keyInput === key.mnemonic
                                       : keyInput === key.publicKey
-                                  
+
                                   return (
                                     <div
                                       key={index}
@@ -718,7 +715,7 @@ export default function HomePage() {
                                         </div>
                                         {secondaryText && (
                                           <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-                                            - {processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic 
+                                            - {processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic
                                               ? secondaryText // Show public key for mnemonic entries
                                               : secondaryText // Show note for public key entries
                                             }
@@ -741,7 +738,7 @@ export default function HomePage() {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Show matched public key in decrypt mode */}
                       {processMode === 'decrypt' && getMatchedPublicKey() && (
                         <div className="space-y-2">
