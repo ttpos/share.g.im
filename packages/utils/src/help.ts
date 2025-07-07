@@ -56,20 +56,115 @@ export const isMnemonicPhrase = (input: string): boolean => {
   return input.split(' ').length >= 12
 }
 
+/**
+ * Generates a new BIP39 mnemonic phrase
+ * @param strength - Entropy strength in bits (128, 160, 192, 224, 256). Default is 128 (12 words)
+ * @returns A BIP39 mnemonic phrase
+ */
+export const generateMnemonic = (strength: number = 128): string => {
+  try {
+    return bip39.generateMnemonic(wordlist, strength)
+  } catch (error) {
+    throw new Error(`Failed to generate mnemonic: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
+ * Validates a BIP39 mnemonic phrase
+ * @param mnemonic - The mnemonic phrase to validate
+ * @returns Validation result with validity status and error message
+ */
+export const validateMnemonic = (mnemonic: string): {
+  isValid: boolean
+  error?: string
+  wordCount?: number
+} => {
+  // Input validation
+  if (!mnemonic || typeof mnemonic !== 'string') {
+    return { isValid: false, error: 'Mnemonic must be a non-empty string' }
+  }
+
+  // Trim and normalize whitespace
+  const trimmedMnemonic = mnemonic.trim().replace(/\s+/g, ' ')
+  if (!trimmedMnemonic) {
+    return { isValid: false, error: 'Mnemonic cannot be empty or whitespace only' }
+  }
+
+  // Check word count
+  const words = trimmedMnemonic.split(' ')
+  const wordCount = words.length
+  
+  // Valid mnemonic lengths: 12, 15, 18, 21, 24 words
+  const validLengths = [12, 15, 18, 21, 24]
+  if (!validLengths.includes(wordCount)) {
+    return {
+      isValid: false,
+      error: `Invalid mnemonic length. Expected 12, 15, 18, 21, or 24 words, got ${wordCount} words`,
+      wordCount
+    }
+  }
+
+  try {
+    const isValid = bip39.validateMnemonic(trimmedMnemonic, wordlist)
+    if (!isValid) {
+      return {
+        isValid: false,
+        error: 'Invalid mnemonic phrase. Please check the word spelling and order',
+        wordCount
+      }
+    }
+
+    return { isValid: true, wordCount }
+  } catch (error) {
+    return {
+      isValid: false,
+      error: `Failed to validate mnemonic: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      wordCount
+    }
+  }
+}
+
+/**
+ * Converts a mnemonic phrase to seed bytes
+ * @param mnemonic - The mnemonic phrase
+ * @param passphrase - Optional passphrase for additional security
+ * @returns Seed bytes as Uint8Array
+ */
+export const mnemonicToSeed = (mnemonic: string, passphrase?: string): Uint8Array => {
+  const validation = validateMnemonic(mnemonic)
+  if (!validation.isValid) {
+    throw new Error(validation.error || 'Invalid mnemonic phrase')
+  }
+
+  try {
+    return bip39.mnemonicToSeedSync(mnemonic.trim().replace(/\s+/g, ' '), passphrase)
+  } catch (error) {
+    throw new Error(`Failed to convert mnemonic to seed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
 // Derive key pair from mnemonic phrase
 export const deriveKeyPair = (mnemonic: string) => {
-  if (!bip39.validateMnemonic(mnemonic, wordlist)) {
-    throw new Error('Invalid mnemonic phrase')
+  const validation = validateMnemonic(mnemonic)
+  if (!validation.isValid) {
+    throw new Error(validation.error || 'Invalid mnemonic phrase')
   }
-  const seed = bip39.mnemonicToSeedSync(mnemonic)
-  const masterNode = HDKey.fromMasterSeed(seed)
-  const key = masterNode.derive(DEFAULT_DERIVATION_PATH)
-  if (!key.privateKey || !key.publicKey) {
-    throw new Error('Failed to derive key pair')
-  }
-  return {
-    privateKey: Buffer.from(key.privateKey).toString('hex'),
-    publicKey: base58.encode(key.publicKey)
+
+  try {
+    const seed = mnemonicToSeed(mnemonic)
+    const masterNode = HDKey.fromMasterSeed(seed)
+    const key = masterNode.derive(DEFAULT_DERIVATION_PATH)
+    
+    if (!key.privateKey || !key.publicKey) {
+      throw new Error('Failed to derive key pair')
+    }
+    
+    return {
+      privateKey: Buffer.from(key.privateKey).toString('hex'),
+      publicKey: base58.encode(key.publicKey)
+    }
+  } catch (error) {
+    throw new Error(`Failed to derive key pair: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
