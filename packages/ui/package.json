@@ -1,7 +1,7 @@
 {
   "name": "@ttpos/share-ui",
   "type": "module",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "description": "ttpos ui",
   "license": "MIT",
