@@ -1,9 +1,9 @@
 {
   "name": "@ttpos/share-turborepo",
   "type": "module",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@9.0.6",
+  "packageManager": "pnpm@9.5.0",
   "author": {
     "name": "ttpos",
     "url": "https://github.com/ttpos"
@@ -26,8 +26,15 @@
     "clean": "bash ./scripts/clean.sh",
     "prepare": "turbo run build --filter=./packages/*"
   },
+  "dependencies": {
+    "react": "catalog:prod",
+    "react-dom": "catalog:prod"
+  },
   "devDependencies": {
-    "turbo": "^2.5.3",
-    "typescript": "5.8.2"
+    "@types/node": "catalog:dev",
+    "@types/react": "catalog:dev",
+    "@types/react-dom": "catalog:dev",
+    "turbo": "catalog:dev",
+    "typescript": "catalog:dev"
   }
 }

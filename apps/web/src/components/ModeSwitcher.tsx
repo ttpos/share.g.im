@@ -1,9 +1,14 @@
 'use client'
 
+import {
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@ttpos/share-ui'
 import { useRouter, usePathname } from 'next/navigation'
-
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface ModeSwitcherProps {
   value: string;

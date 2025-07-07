@@ -2,6 +2,10 @@
 
 SecureVault is a Next.js-based client-side file encryption/decryption tool designed to provide users with a secure and convenient file encryption service. It utilizes the `eciesjs` library to implement asymmetric encryption (based on the secp256k1 curve's ECIES), supports chunked processing for large files, and ensures efficient and secure operations through Web Workers.
 
+<!-- gallery nut tank snake doll kiss toddler sign era magnet battle gap
+
+24Wzcxw5ujbKKV9cQyx1f1cFRvuTrDrTGgquY6i2gNd8b -->
+
 ## Features
 
 - **Support for Any File Type**: Capable of encrypting and decrypting any file type.

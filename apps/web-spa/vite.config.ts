@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
-import path from 'path';
+import path, { resolve } from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
+
+const rootDir = resolve(__dirname);
 
 export default defineConfig({
   plugins: [
@@ -11,6 +13,7 @@ export default defineConfig({
     tailwindcss(),
     viteSingleFile(),
   ],
+  publicDir: resolve(rootDir, 'public'),
   build: {
     target: 'esnext',
   },

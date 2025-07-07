@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import App from './App';
 import Home from './pages/Home';
-import PasswordPage from './pages/PasswordPage';
-import './index.css';
+// @ts-ignore
+import '@ttpos/share-ui/css'
 
 import { Buffer } from 'buffer';
 
@@ -18,7 +18,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <Routes>
         <Route path="/" element={<App><Home /></App>} />
-        <Route path="/password" element={<App><PasswordPage /></App>} />
       </Routes>
     </HashRouter>
   </React.StrictMode>,

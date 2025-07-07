@@ -1,23 +1,22 @@
-import GradientText from '@/components/reactbits/GradientText'
-import ShinyText from '@/components/reactbits/ShinyText'
+import { Lock } from 'lucide-react'
+
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function Header() {
   return (
-    <header className="w-full max-w-6xl mb-8 md:mb-12 z-0">
-      <div className="flex flex-col md:flex-row items-center md:justify-between gap-4">
-        <div className="flex-1 text-center">
-          <GradientText className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent flex items-center justify-center gap-2 sm:gap-3">
-            SecureVault
-          </GradientText>
-          <ShinyText
-            text="ECIES File & Message Encryption Tool"
-            disabled={false}
-            speed={3}
-            className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 font-medium"
-          />
+    <header className="relative w-full py-8 z-10 bg-[#0052D9] dark:bg-[#0E0F11] text-white dark:text-gray-200 overflow-hidden">
+      <Lock className="hidden md:block absolute size-34 top-1/3 -left-12 text-[#4c85e4] dark:text-[#121212]" />
+      <div className="relative max-w-6xl mx-auto flex flex-col md:flex-row items-center md:justify-between gap-4 p-4">
+        <div className="flex-1 text-center space-y-2">
+          <h1 className="text-3xl md:text-4xl font-bold flex items-center justify-center text-white dark:text-gray-200">
+            Secure Vault
+          </h1>
+          <h3 className="text-sm md:text-base font-medium text-white dark:text-gray-300">
+            ECIES File & Message Encryption Tool
+          </h3>
         </div>
-        <div className="flex items-center gap-2 justify-center md:justify-end w-full md:w-auto">
+
+        <div className="flex items-center gap-2 justify-center md:justify-end w-full md:w-auto md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2">
           <ThemeToggle />
         </div>
       </div>

@@ -1,0 +1,70 @@
+{
+  "name": "@ttpos/share-ui",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ttpos ui",
+  "license": "MIT",
+  "homepage": "https://github.com/nsiod/share.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nsiod/share.git",
+    "directory": "packages/ui"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./css": "./src/globals.css",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**",
+    "dist/**/*.css"
+  ],
+  "scripts": {
+    "dev:tsup": "tsup src/index.ts --format esm,cjs --dts --external react,chrome --watch",
+    "build:tsup": "tsup src/index.ts --format esm,cjs --dts --external react,chrome --watch",
+    "dev": "tsc -w",
+    "build": "tsc",
+    "typecheck": "tsc --project ./tsconfig.json --noEmit",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "catalog:prod",
+    "@radix-ui/react-dropdown-menu": "catalog:prod",
+    "@radix-ui/react-hover-card": "catalog:prod",
+    "@radix-ui/react-label": "catalog:prod",
+    "@radix-ui/react-popover": "catalog:prod",
+    "@radix-ui/react-progress": "catalog:prod",
+    "@radix-ui/react-radio-group": "catalog:prod",
+    "@radix-ui/react-scroll-area": "catalog:prod",
+    "@radix-ui/react-select": "catalog:prod",
+    "@radix-ui/react-separator": "catalog:prod",
+    "@radix-ui/react-slider": "catalog:prod",
+    "@radix-ui/react-slot": "catalog:prod",
+    "@radix-ui/react-switch": "catalog:prod",
+    "@radix-ui/react-tabs": "catalog:prod",
+    "@radix-ui/react-tooltip": "catalog:prod",
+    "class-variance-authority": "catalog:prod",
+    "clsx": "catalog:prod",
+    "cmdk": "catalog:prod",
+    "input-otp": "catalog:prod",
+    "lucide-react": "catalog:prod",
+    "ogl": "catalog:prod",
+    "sonner": "catalog:prod",
+    "tailwind-merge": "catalog:prod"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "catalog:dev",
+    "@ttpos/share-tsconfig": "workspace:*",
+    "tailwindcss": "catalog:dev",
+    "tsup": "catalog:dev",
+    "tw-animate-css": "catalog:dev"
+  }
+}

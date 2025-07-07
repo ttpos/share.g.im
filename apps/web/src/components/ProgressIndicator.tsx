@@ -1,4 +1,4 @@
-import { Progress } from '@/components/ui/progress'
+import { Progress } from '@ttpos/share-ui'
 
 interface ProgressIndicatorProps {
   isProcessing: boolean
