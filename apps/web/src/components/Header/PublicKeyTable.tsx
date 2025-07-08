@@ -80,34 +80,34 @@ export const PublicKeyTable = ({
   }
 
   return (
-    <div className="overflow-x-auto pb-4 sm:pb-6">
-      <Table>
+    <div className="w-full">
+      <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="p-2 sm:p-3 text-left">Public Key</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left w-3/5 truncate">Note</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left"></TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '60%' }}>Public Key</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '25%' }}>Note</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '15%' }}></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {publicKeys.map((key, index) => (
             <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600 text-gray-500 font-normal">
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {sliceAddress(key.publicKey)}
-                  <Button variant="ghost" size="icon" onClick={() => onCopy(key.publicKey)}>
+              <TableCell className="p-2 sm:p-3" style={{ width: '60%' }}>
+                <div className="flex items-center min-w-0">
+                  <span className="truncate font-mono text-xs sm:text-sm flex-1" title={key.publicKey}>
+                    {key.publicKey}
+                  </span>
+                  <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => onCopy(key.publicKey)}>
                     <Copy className="size-4" />
                   </Button>
                 </div>
               </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <span className="truncate max-w-30 sm:max-w-40">
-                    {key.note || '---'}
-                  </span>
+              <TableCell className="p-2 sm:p-3" style={{ width: '25%' }}>
+                <div className="flex items-center min-w-0">
+                  <span className="truncate" title={key.note}>{key.note || '---'}</span>
                   <Popover open={isNotePopoverOpen && editingIndex === index} onOpenChange={(open) => !open && handleCancelNote()}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => handleEditNote(key, index)}>
+                      <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => handleEditNote(key, index)}>
                         <Pencil className="size-4" />
                       </Button>
                     </PopoverTrigger>
@@ -135,7 +135,7 @@ export const PublicKeyTable = ({
                   </Popover>
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="p-2 sm:p-3" style={{ width: '15%' }}>
                 <Popover open={isDeletePopoverOpen && editingIndex === index} onOpenChange={(open) => !open && handleCancelDelete()}>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(index)}>

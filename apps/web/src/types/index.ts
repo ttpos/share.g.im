@@ -24,7 +24,7 @@ export interface KeyPair {
   index?: number
 }
 
-export type TabType = 'General' | 'Keys' | 'External Public Keys' | 'Security Password'
+export type TabType = 'General' | 'Owner Keys' | 'Receiver Keys' | 'Security Password'
 
 export interface ValidationResult {
   isValid: boolean
