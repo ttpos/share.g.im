@@ -19,6 +19,7 @@ import {
 } from '@ttpos/share-ui'
 import { downloadFile, sliceAddress } from '@ttpos/share-utils'
 import { Copy, Pencil, Trash2, Info, Link, Download, Eye } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 import { KeyPair } from '@/types'
@@ -40,6 +41,11 @@ export const KeyPairTable = ({
   onDelete,
   onSaveNote
 }: KeyPairTableProps) => {
+  const tSettings = useTranslations('settings')
+  const tOwnerKeys = useTranslations('settings.ownerKeys')
+  const tButtons = useTranslations('buttons')
+  const tInput = useTranslations('input')
+
   const [isNotePopoverOpen, setIsNotePopoverOpen] = useState(false)
   const [isDeletePopoverOpen, setIsDeletePopoverOpen] = useState(false)
   const [isMnemonicPopoverOpen, setIsMnemonicPopoverOpen] = useState(false)
@@ -113,8 +119,12 @@ export const KeyPairTable = ({
       <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '55%' }}>Public Key</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '20%' }}>Note</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '55%' }}>
+              {tOwnerKeys('publicKey')}
+            </TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '20%' }}>
+              {tInput('note')}
+            </TableHead>
             <TableHead className="p-2 sm:p-3 text-left" style={{ width: '25%' }}></TableHead>
           </TableRow>
         </TableHeader>
@@ -152,21 +162,23 @@ export const KeyPairTable = ({
                     </PopoverTrigger>
                     <PopoverContent className="w-[90vw] sm:w-80">
                       <div className="space-y-4">
-                        <Label htmlFor="editKeyPairNote" className="text-sm font-medium text-gray-900 dark:text-gray-100">Edit Note</Label>
+                        <Label htmlFor="editKeyPairNote" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {tSettings('editNote')}
+                        </Label>
                         <Input
                           id="editKeyPairNote"
                           type="text"
                           value={editingNote}
                           onChange={(e) => setEditingNote(e.target.value)}
                           className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200"
-                          placeholder="Optional note for this key pair"
+                          placeholder={tInput('addNote')}
                         />
                         <div className="flex justify-end gap-2">
                           <Button variant="outline" size="sm" onClick={handleCancelNote}>
-                            Cancel
+                            {tButtons('cancel')}
                           </Button>
                           <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSaveNote}>
-                            Save
+                            {tButtons('save')}
                           </Button>
                         </div>
                       </div>
@@ -194,7 +206,9 @@ export const KeyPairTable = ({
                           <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
                             <Eye className="size-3 sm:size-4 text-blue-600 dark:text-blue-400" />
                           </div>
-                          <h4 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100">View Mnemonic</h4>
+                          <h4 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                            {tOwnerKeys('viewMnemonic')}
+                          </h4>
                         </div>
 
                         {keyPair.mnemonic && (
@@ -213,7 +227,7 @@ export const KeyPairTable = ({
                             <div className="flex items-start gap-1.5 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-md border border-amber-200 dark:border-amber-800">
                               <Info className="size-3 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                               <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
-                                Keep safe and never share
+                                {tOwnerKeys('keepSafeWarning')}
                               </p>
                             </div>
 
@@ -225,7 +239,7 @@ export const KeyPairTable = ({
                                 onClick={() => onCopyMnemonic(keyPair.mnemonic!)}
                               >
                                 <Copy className="size-3" />
-                                Copy
+                                {tButtons('copy')}
                               </Button>
                               <Button
                                 variant="outline"
@@ -234,7 +248,7 @@ export const KeyPairTable = ({
                                 onClick={() => handleDownloadMnemonic(keyPair.mnemonic!, index)}
                               >
                                 <Download className="size-3" />
-                                Download
+                                {tButtons('download')}
                               </Button>
                             </div>
                           </div>
@@ -256,17 +270,19 @@ export const KeyPairTable = ({
                           <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
                             <Info className="size-3 sm:size-4 text-red-600 dark:text-red-400" />
                           </div>
-                          <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">Delete Key Pair</h4>
+                          <h4 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            {tSettings('deleteConfirm.keyPair.title')}
+                          </h4>
                         </div>
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                          Are you sure you want to delete this key pair? This action cannot be undone.
+                          {tSettings('deleteConfirm.keyPair.description')}
                         </p>
                         <div className="flex justify-end gap-2 sm:gap-3">
                           <Button variant="outline" size="sm" onClick={handleCancelDelete}>
-                            Cancel
+                            {tButtons('cancel')}
                           </Button>
                           <Button variant="destructive" size="sm" onClick={handleConfirmDelete}>
-                            Delete
+                            {tButtons('delete')}
                           </Button>
                         </div>
                       </div>

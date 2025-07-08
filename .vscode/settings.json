@@ -17,5 +17,10 @@
       "mode": "auto"
     }
   ],
-  "tailwindCSS.experimental.configFile": "../apps/web/src/app/globals.css"
+  "tailwindCSS.experimental.configFile": "../apps/web/src/app/globals.css",
+  "i18n-ally.localesPaths": [
+    "apps/web/messages",
+    "apps/web/src/i18n"
+  ],
+  "i18n-ally.keystyle": "nested"
 }
