@@ -12,7 +12,10 @@ import {
   TableRow,
   TableHead,
   TableBody,
-  TableCell
+  TableCell,
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger
 } from '@ttpos/share-ui'
 import { sliceAddress } from '@ttpos/share-utils'
 import { Copy, Pencil, Trash2, Info } from 'lucide-react'
@@ -84,25 +87,33 @@ export const PublicKeyTable = ({
       <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '60%' }}>Public Key</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '25%' }}>Note</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '65%' }}>Public Key</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '20%' }}>Note</TableHead>
             <TableHead className="p-2 sm:p-3 text-left" style={{ width: '15%' }}></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {publicKeys.map((key, index) => (
             <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600 text-gray-500 font-normal">
-              <TableCell className="p-2 sm:p-3" style={{ width: '60%' }}>
-                <div className="flex items-center min-w-0">
-                  <span className="truncate font-mono text-xs sm:text-sm flex-1" title={key.publicKey}>
-                    {key.publicKey}
-                  </span>
-                  <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => onCopy(key.publicKey)}>
-                    <Copy className="size-4" />
-                  </Button>
-                </div>
+              <TableCell className="p-2 sm:p-3" style={{ width: '65%' }}>
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <div className="flex items-center min-w-0">
+                      <span className="truncate flex-1 font-mono text-xs sm:text-sm">
+                        {key.publicKey}
+                      </span>
+                    </div>
+                  </HoverCardTrigger>
+                  <HoverCardContent className='w-full'>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs break-all flex-1">
+                        {key.publicKey}
+                      </span>
+                    </div>
+                  </HoverCardContent>
+                </HoverCard>
               </TableCell>
-              <TableCell className="p-2 sm:p-3" style={{ width: '25%' }}>
+              <TableCell className="p-2 sm:p-3" style={{ width: '20%' }}>
                 <div className="flex items-center min-w-0">
                   <span className="truncate" title={key.note}>{key.note || '---'}</span>
                   <Popover open={isNotePopoverOpen && editingIndex === index} onOpenChange={(open) => !open && handleCancelNote()}>
@@ -136,6 +147,9 @@ export const PublicKeyTable = ({
                 </div>
               </TableCell>
               <TableCell className="p-2 sm:p-3" style={{ width: '15%' }}>
+                <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => onCopy(key.publicKey)}>
+                  <Copy className="size-4" />
+                </Button>
                 <Popover open={isDeletePopoverOpen && editingIndex === index} onOpenChange={(open) => !open && handleCancelDelete()}>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(index)}>
