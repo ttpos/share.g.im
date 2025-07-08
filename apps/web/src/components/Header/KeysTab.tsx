@@ -2,6 +2,7 @@
 
 import { Button } from '@ttpos/share-ui'
 import { ChevronLeft } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'
 
 import { CreateKeyPairForm } from '@/components/Header/CreateKeyPairForm'
@@ -27,6 +28,9 @@ export const KeysTab = ({
   editKeyPair,
   setEditKeyPair
 }: KeysTabProps) => {
+  const tOwnerKeys = useTranslations('settings.ownerKeys')
+  const tButtons = useTranslations('buttons')
+
   const {
     handleCreateKeyPair,
     handleSaveKeyPair,
@@ -74,14 +78,16 @@ export const KeysTab = ({
           <Button variant="ghost" size="icon" onClick={() => setShowCreateKeyPair(false)}>
             <ChevronLeft className="size-4" />
           </Button>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Owner Keys</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {tOwnerKeys('title')}
+          </h2>
         </div>
         <div className="flex justify-center text-center pt-2 pb-6">
           <CreateKeyPairForm
             keyPair={editKeyPair}
             onNoteChange={handleNoteChange}
             onPublicKeyChange={handlePublicKeyChange}
-            onMnemonicChange={handleMnemonicChange} // 添加这个
+            onMnemonicChange={handleMnemonicChange}
             onSave={handleSave}
             onCancel={() => setShowCreateKeyPair(false)}
           />
@@ -93,10 +99,12 @@ export const KeysTab = ({
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Owner Keys</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          {tOwnerKeys('title')}
+        </h2>
         {keyPairs.length > 0 && (
           <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleCreateKeyPair}>
-            Create Key
+            {tButtons('createKey')}
           </Button>
         )}
       </div>
@@ -104,9 +112,9 @@ export const KeysTab = ({
       {keyPairs.length === 0 ? (
         <EmptyState
           icon="/PublicKeys.svg"
-          title="No Owner Keys"
-          description="Create a Key to Encrypt Files or Text"
-          buttonText="Create Key"
+          title={tOwnerKeys('noKeys')}
+          description={tOwnerKeys('description')}
+          buttonText={tButtons('createKey')}
           onButtonClick={handleCreateKeyPair}
         />
       ) : (

@@ -1,0 +1,331 @@
+{
+  "metadata": {
+    "title": "SecureVault",
+    "description": "SecureVault uses ECIES for secure and efficient file encryption and decryption.",
+    "keywords": "File encryption, File decryption, ECIES, Asymmetric encryption, Large file encryption, Password protection, Blockchain Security"
+  },
+  "header": {
+    "title": "ECIES File & Message Encryption Tool"
+  },
+  "navigation": {
+    "upload": "Upload",
+    "pasteText": "Paste Text"
+  },
+  "upload": {
+    "dragDrop": "Drag & Drop Your File",
+    "or": "or",
+    "selectFile": "Select File",
+    "dropHere": "Drop your file here!",
+    "selectedFile": "Selected File"
+  },
+  "input": {
+    "publicKey": "Public Key",
+    "privateKey": "Private Key or Mnemonic",
+    "enterPublicKey": "Enter Base58 public key (approx. 44-45 characters)",
+    "enterPrivateKey": "Enter private key or mnemonic phrase",
+    "note": "Note",
+    "addNote": "Add an optional note for this key pair",
+    "optionalNote": "Optional note for this public key",
+    "pasteText": "Paste or enter text to encrypt or decrypt"
+  },
+  "buttons": {
+    "encrypt": "Encrypt",
+    "decrypt": "Decrypt",
+    "reset": "Reset",
+    "copy": "Copy",
+    "download": "Download",
+    "tryAgain": "Try Again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "import": "Import",
+    "export": "Export",
+    "change": "Change",
+    "generate": "Generate",
+    "createKey": "Create Key",
+    "addPublicKey": "Add Public Key",
+    "updatePublicKey": "Update Public Key",
+    "addReceiverKeys": "Add Receiver Keys",
+    "saveKeyPair": "Save Key Pair",
+    "generateNew": "Generate New",
+    "selectBackupFile": "Select Backup File",
+    "changeFile": "Change File"
+  },
+  "processing": {
+    "encrypting": "Encrypting",
+    "decrypting": "Decrypting",
+    "processing": "Processing...",
+    "importing": "Importing...",
+    "exporting": "Exporting...",
+    "generating": "Generating..."
+  },
+  "messages": {
+    "success": {
+      "fileEncrypted": "File encrypted successfully! Please click the download button to save.",
+      "fileDecrypted": "File decrypted successfully! Please click the download button to save.",
+      "textEncrypted": "Text encrypted successfully!",
+      "textDecrypted": "Text decrypted successfully!",
+      "textCopied": "Text copied to clipboard!",
+      "publicKeyCopied": "Public key copied to clipboard",
+      "mnemonicCopied": "Mnemonic copied to clipboard",
+      "publicKeySaved": "Public key saved successfully",
+      "keyPairSaved": "Key pair saved successfully",
+      "keyPairDeleted": "Key pair deleted successfully",
+      "publicKeyDeleted": "Public key deleted successfully",
+      "noteUpdated": "Note updated successfully",
+      "mnemonicGenerated": "New mnemonic generated",
+      "keyPairGenerated": "Key pair generated successfully from mnemonic",
+      "mnemonicDownloaded": "Mnemonic downloaded",
+      "backupCreated": "Encrypted backup created and downloaded successfully",
+      "backupImported": "Backup imported successfully!",
+      "accountReset": "Account reset successfully. All data cleared.",
+      "passwordSet": "Password set successfully",
+      "passwordUpdated": "Password updated successfully"
+    },
+    "error": {
+      "selectFile": "Please select a file",
+      "enterText": "Please enter text to process",
+      "enterPublicKey": "Please enter a public key",
+      "enterPrivateKey": "Please enter a private key or mnemonic",
+      "failedCopyText": "Failed to copy text",
+      "failedCopyPublicKey": "Failed to copy public key",
+      "failedCopyMnemonic": "Failed to copy mnemonic",
+      "invalidPublicKey": "Invalid public key",
+      "invalidPrivateKey": "Invalid private key",
+      "invalidMnemonic": "Invalid mnemonic phrase. Please check your input.",
+      "keyPairIncomplete": "Key pair is incomplete",
+      "noMnemonic": "Please enter a valid mnemonic phrase",
+      "failedProcessFile": "Failed to process file",
+      "failedCreateBackup": "Failed to create encrypted backup",
+      "failedImportBackup": "Failed to import backup. Please check the file and password.",
+      "invalidBackupFile": "Invalid backup file format",
+      "invalidPassword": "Invalid import password",
+      "enterExportPassword": "Please enter a 6-digit export password",
+      "enterImportPassword": "Please enter the 6-digit import password",
+      "passwordsNotMatch": "The two passwords are inconsistent, please re-enter",
+      "currentPasswordIncorrect": "Current password is incorrect",
+      "enterValidCurrentPassword": "Please enter a valid current password",
+      "failedSavePassword": "Failed to save password. Please try again.",
+      "failedVerifyPassword": "Failed to verify current password",
+      "signedContentNotSupported": "Signed content is not supported yet",
+      "passwordEncryptedNotSupported": "Password encrypted content is not supported in this mode",
+      "signedFilesNotSupported": "Signed files are not supported yet",
+      "multipleFilesNotSupported": "Please select only one file at a time",
+      "noMatchingPrivateKey": "No matching private key found for this public key"
+    },
+    "info": {
+      "detectedPublicKeyEncryptedText": "Detected public key encrypted text, switching to decrypt mode",
+      "detectedUnencryptedText": "Detected unencrypted text, switching to encrypt mode",
+      "detectedPublicKeyEncryptedFile": "Detected public key encrypted file, switching to Key Encryption mode",
+      "signatureValid": "Signature verification: Valid",
+      "signatureInvalid": "Signature verification: Invalid"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "ownerKeys": "Owner Keys",
+      "receiverKeys": "Receiver Keys",
+      "securityPassword": "Security Password"
+    },
+    "general": {
+      "title": "General Settings",
+      "theme": "Theme",
+      "themes": {
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "language": "Language",
+      "languages": {
+        "en": "English",
+        "zh": "中文"
+      },
+      "backupData": {
+        "title": "Back Up Data",
+        "description": "Export your keys and settings as an encrypted backup file."
+      },
+      "importData": {
+        "title": "Import Data",
+        "description": "Import encrypted backup file to restore your keys and settings."
+      },
+      "resetAccount": {
+        "title": "Reset Account",
+        "description": "Resetting the account will delete all locally stored data. This action cannot be undone.",
+        "confirmTitle": "Reset Account",
+        "confirmDescription": "Resetting the account will delete all locally stored data. Please make sure you have backed up your data first. This action cannot be undone."
+      }
+    },
+    "ownerKeys": {
+      "title": "Owner Keys",
+      "noKeys": "No Owner Keys",
+      "description": "Create a Key to Encrypt Files or Text",
+      "mnemonicPhrase": "Mnemonic Phrase",
+      "generateNewMnemonic": "Enter your mnemonic phrase or click 'Generate New'",
+      "publicKey": "Public Key",
+      "publicKeyPlaceholder": "Public key will be displayed here",
+      "validMnemonic": "✓ Valid mnemonic phrase",
+      "invalidMnemonic": "Invalid mnemonic phrase. Please check your input.",
+      "mnemonicNote": "Enter a valid BIP39 mnemonic phrase or generate a new one",
+      "keepSafe": "Please keep your mnemonic phrase safe. It can be used to recover your private key.",
+      "viewMnemonic": "View Mnemonic",
+      "keepSafeWarning": "Keep safe and never share"
+    },
+    "receiverKeys": {
+      "title": "Receiver Keys",
+      "noKeys": "No Receiver Keys",
+      "description": "Add an external public key to encrypt files or text."
+    },
+    "securityPassword": {
+      "title": "Security Password",
+      "notSet": "You haven't set a security password yet. To protect your account, please set one now.",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "confirmNewPassword": "Confirm New Password",
+      "setPassword": "Set your Password",
+      "yourPassword": "Your Security Password",
+      "forgotPassword": "Forgot password",
+      "forgotPasswordHint": "Forgot your password? Just reset your account to start over. Don't forget to back up your data first.",
+      "everyTimeNote": "Yes. To ensure security, you must enter your password each time you access the Keys section.",
+      "resetPasswordNote": "You can reset your account to set a new security password. Be sure to back up your data before resetting, and you can later import it to restore your key data."
+    },
+    "export": {
+      "title": "Create Encrypted Backup",
+      "description": "Set a 6-digit password to encrypt your backup file. Remember this password - you'll need it to import the backup.",
+      "password": "Export Password (6 digits)"
+    },
+    "import": {
+      "title": "Import Data",
+      "description": "Select the backup file you previously saved to restore your data.",
+      "password": "Import Password (6 digits)",
+      "passwordHint": "Enter the password you used when creating this backup"
+    },
+    "deleteConfirm": {
+      "keyPair": {
+        "title": "Delete Key Pair",
+        "description": "Are you sure you want to delete this key pair? This action cannot be undone."
+      },
+      "publicKey": {
+        "title": "Delete Public Key",
+        "description": "Are you sure you want to delete this public key? This action cannot be undone."
+      }
+    },
+    "editNote": "Edit Note"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "tabs": {
+      "gettingStarted": "Getting Started",
+      "usageScenarios": "Usage Scenarios",
+      "features": "Features",
+      "faq": "FAQ",
+      "dataSecurity": "Data Security",
+      "privacy": "Privacy"
+    },
+    "gettingStarted": {
+      "keyCreation": {
+        "title": "Where can I create a public/private key pair?",
+        "description": "Click \"Settings\", go to the \"Keys\" section, and create a key pair to obtain your encryption public key and decryption private key."
+      },
+      "fileEncryption": {
+        "title": "How to encrypt a file?",
+        "description": "Select or drag the file to be encrypted; the system will automatically detect the file type. Enter or choose a public key, then click \"Encrypt\" to start."
+      },
+      "fileDecryption": {
+        "title": "How to decrypt a received encrypted file?",
+        "description": "Upload the encrypted file; the system will recognize it. Enter the correct private key and click \"Decrypt\" to view the content."
+      },
+      "textEncryption": {
+        "title": "Can I encrypt text?",
+        "description": "Yes. On the homepage, switch to \"Paste Text\" mode, paste your content, enter the key, and click \"Encrypt\"."
+      }
+    },
+    "usageScenarios": {
+      "sendFiles": {
+        "title": "Send Encrypted Files to Others",
+        "description": "Use the recipient's public key to encrypt the file. Then send the encrypted file through other means, such as cloud storage or email. Only the recipient can decrypt it using their private key."
+      },
+      "encryptFiles": {
+        "title": "Encrypt Your Own Files",
+        "description": "First, create a key pair (public key and private key) under the \"Keys\" section. Use your public key to encrypt files, and later use your private key to decrypt them."
+      },
+      "quickEncrypt": {
+        "title": "Quick Encryption",
+        "description": "You can share your public key link directly. Others can open the link to encrypt files instantly, without needing to enter your key manually."
+      },
+      "archiveFiles": {
+        "title": "I'd like to encrypt and archive company files. Is that possible?",
+        "description": "Absolutely. We recommend that you create a key pair and keep the private key safe. You can then use it to encrypt and store or archive internal company files."
+      }
+    },
+    "features": {
+      "encryptionMethod": {
+        "title": "What encryption methods are supported?",
+        "description": "Asymmetric encryption is supported (using public-private key pairs)."
+      },
+      "fileTypeSupport": {
+        "title": "What file types are supported?",
+        "description": "Common document, image, archive, audio, and video formats are supported. A single file can be up to 100MB, and text is limited to 10,000 characters."
+      },
+      "publicKeyLink": {
+        "title": "Public key link encryption",
+        "description": "You can share a public key link to allow others to encrypt documents and send them to you securely."
+      }
+    },
+    "faq": {
+      "createKeys": {
+        "question": "Do I need to create my own keys?",
+        "answer": "Yes. If you want to encrypt files or receive encrypted files from others, we recommend creating your own key pair."
+      },
+      "sharePublicKey": {
+        "question": "How do I share my public key?",
+        "answer": "After creating a key pair, you can copy the public key or the generated public key link for others to use."
+      },
+      "forgotKey": {
+        "question": "What if I forget my private key or password?",
+        "answer": "We cannot retrieve your private key or password. Please back them up safely and do not share them. Without them, you cannot decrypt data."
+      },
+      "enterPasswordEveryTime": {
+        "question": "Do I need to enter the security password every time?",
+        "answer": "Yes. To ensure security, you must enter your password each time you access the Keys section."
+      },
+      "forgotSecurityPassword": {
+        "question": "What if I forget the security password?",
+        "answer": "You can reset your account to set a new security password. Be sure to back up your data before resetting, and you can later import it to restore your key data."
+      },
+      "multipleFiles": {
+        "question": "Can I encrypt multiple files at once?",
+        "answer": "No. Only one file can be encrypted at a time."
+      }
+    },
+    "dataSecurity": {
+      "localProcessing": {
+        "title": "Are my files uploaded to the server?",
+        "description": "No. All encryption/decryption operations are performed locally in your browser. No data is uploaded or stored."
+      },
+      "endToEndEncryption": {
+        "title": "Can you access my private key?",
+        "description": "No. The private key is stored locally and protected by your security password. We cannot access or read it."
+      }
+    },
+    "privacy": {
+      "tracking": {
+        "title": "Do you track my usage?",
+        "description": "No. This tool does not track, store, or upload any user data. It operates entirely locally for complete privacy protection."
+      },
+      "keyDeletion": {
+        "title": "How can I completely remove my keys?",
+        "description": "You can delete your key pair in the key management section. Once deleted, it cannot be recovered. You can also reset your account to remove all key data."
+      }
+    }
+  },
+  "error": {
+    "title": "Oh no!",
+    "description": "There was an issue with our storefront. This could be a temporary issue, please try your action again."
+  },
+  "footer": {
+    "copyright": "© 2025 Secure Vault. All rights reserved."
+  }
+}
