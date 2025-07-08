@@ -113,29 +113,21 @@ export const KeyPairTable = ({
       <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '50%' }}>Public Key</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '30%' }}>Note</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '20%' }}></TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '55%' }}>Public Key</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '20%' }}>Note</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '25%' }}></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {keyPairs.map((keyPair, index) => (
             <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600 text-gray-500 font-normal">
-              <TableCell className="p-2 sm:p-3" style={{ width: '50%' }}>
+              <TableCell className="p-2 sm:p-3" style={{ width: '55%' }}>
                 <HoverCard>
                   <HoverCardTrigger asChild>
                     <div className="flex items-center min-w-0">
-                      <span className="truncate flex-1 font-mono text-xs sm:text-sm" title={keyPair.publicKey}>
+                      <span className="truncate flex-1 font-mono text-xs sm:text-sm">
                         {keyPair.publicKey}
                       </span>
-                      <div className="flex-shrink-0">
-                        <Button variant="ghost" size="icon" onClick={() => onCopyPublic(keyPair.publicKey)}>
-                          <Copy className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleLink(keyPair.publicKey)}>
-                          <Link className="size-4" />
-                        </Button>
-                      </div>
                     </div>
                   </HoverCardTrigger>
                   <HoverCardContent className='w-full'>
@@ -143,19 +135,11 @@ export const KeyPairTable = ({
                       <span className="font-mono text-xs break-all flex-1">
                         {keyPair.publicKey}
                       </span>
-                      <div className="flex-shrink-0">
-                        <Button variant="ghost" size="icon" onClick={() => onCopyPublic(keyPair.publicKey)}>
-                          <Copy className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleLink(keyPair.publicKey)}>
-                          <Link className="size-4" />
-                        </Button>
-                      </div>
                     </div>
                   </HoverCardContent>
                 </HoverCard>
               </TableCell>
-              <TableCell className="p-2 sm:p-3" style={{ width: '30%' }}>
+              <TableCell className="p-2 sm:p-3" style={{ width: '20%' }}>
                 <div className="flex items-center min-w-0">
                   <span className="truncate" title={keyPair.note}>
                     {keyPair.note || '---'}
@@ -190,8 +174,14 @@ export const KeyPairTable = ({
                   </Popover>
                 </div>
               </TableCell>
-              <TableCell className="p-2 sm:p-3" style={{ width: '20%' }}>
-                <div className="flex items-center gap-1">
+              <TableCell className="p-2 sm:p-3" style={{ width: '25%' }}>
+                <div className="flex items-center">
+                  <Button variant="ghost" size="icon" onClick={() => onCopyPublic(keyPair.publicKey)}>
+                    <Copy className="size-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleLink(keyPair.publicKey)}>
+                    <Link className="size-4" />
+                  </Button>
                   <Popover open={isMnemonicPopoverOpen && editingIndex === index} onOpenChange={(open) => !open && handleCloseMnemonic()}>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="icon" onClick={() => handleViewMnemonic(index)} disabled={!keyPair.mnemonic}>

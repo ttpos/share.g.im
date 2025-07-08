@@ -1,9 +1,9 @@
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable no-unused-vars */
-import { 
-  Button, 
-  Popover, 
-  PopoverContent, 
+import {
+  Button,
+  Popover,
+  PopoverContent,
   PopoverTrigger,
   Dialog,
   DialogContent,
@@ -97,7 +97,7 @@ export const GeneralTab = ({
 
       // Hash the export password
       const hashedPassword = await hashPasswordFn(exportPassword)
-      
+
       // Use cryptoWorker to encrypt the backup data
       const worker = workerRef.current
       if (!worker) throw new Error('Web Worker not initialized')
@@ -154,15 +154,15 @@ export const GeneralTab = ({
 
         <ThemeSelector />
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
+        {/* <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 gap-2 sm:gap-0">
           <div>
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Back Up Data</h3>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
               Export your keys and settings as an encrypted backup file.
             </p>
           </div>
-          <Button 
-            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" 
+          <Button
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
             onClick={() => setIsExportDialogOpen(true)}
           >
             Export
@@ -176,13 +176,13 @@ export const GeneralTab = ({
               Import encrypted backup file to restore your keys and settings.
             </p>
           </div>
-          <Button 
-            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white" 
+          <Button
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
             onClick={() => setShowImportDialog(true)}
           >
             Import
           </Button>
-        </div>
+        </div> */}
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-4 gap-2 sm:gap-0">
           <div>
@@ -230,7 +230,7 @@ export const GeneralTab = ({
               Set a 6-digit password to encrypt your backup file. Remember this password - you'll need it to import the backup.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="export-password">Export Password (6 digits)</Label>
@@ -247,7 +247,7 @@ export const GeneralTab = ({
             <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleExport}
               disabled={exportPassword.length !== 6 || isProcessing}
               className="bg-blue-600 hover:bg-blue-700 text-white"

@@ -3,6 +3,7 @@
 import {
   Button,
   Label,
+  Input,
   PasswordInput,
   Tabs,
   TabsContent,
@@ -30,6 +31,7 @@ import HowItWorksSection from '@/components/HowItWorksSection'
 import TextInputArea from '@/components/TextInputArea'
 import { STORAGE_KEYS } from '@/constants'
 import { useSecureLocalStorage } from '@/hooks'
+import { secureStorage } from '@/lib/encryption'
 import { generateDownloadFilename } from '@/lib/utils'
 import { FileInfo, PublicKey, KeyPair } from '@/types'
 
@@ -54,6 +56,7 @@ export default function HomePage() {
   const workerRef = useRef<Worker | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const keyInputRef = useRef<HTMLInputElement>(null)
+  const detectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load stored keys
   const [publicKeys, , , isPublicKeysLoaded] = useSecureLocalStorage<PublicKey[]>(STORAGE_KEYS.PUBLIC_KEYS, [])
@@ -66,7 +69,6 @@ export default function HomePage() {
   // Refresh keys from storage
   const refreshKeysFromStorage = useCallback(async () => {
     try {
-      const { secureStorage } = await import('@/lib/encryption')
       const freshPubKeys = await secureStorage.getItem(STORAGE_KEYS.PUBLIC_KEYS, [])
       const freshKeyPairsData = await secureStorage.getItem(STORAGE_KEYS.KEY_PAIRS, [])
       setFreshPublicKeys(freshPubKeys)
@@ -105,15 +107,70 @@ export default function HomePage() {
     }
   }, [refreshKeysFromStorage])
 
-  // Refresh when key input gets focus (most reliable for user interaction)
+  // Handle text input change with detection
+  const handleTextInputChange = useCallback(async (value: string) => {
+    setTextInput(value)
+
+    // Clear previous timeout
+    if (detectTimeoutRef.current) {
+      clearTimeout(detectTimeoutRef.current)
+    }
+
+    // Add debounce to avoid frequent detection calls
+    detectTimeoutRef.current = setTimeout(async () => {
+      if (value.trim()) {
+        try {
+          const metadata = await detect(value)
+
+          if (metadata.encryptionType === 'pubk') {
+            // Detected public key encrypted text, switch to decrypt mode
+            if (processMode !== 'decrypt') {
+              setProcessMode('decrypt')
+              toast.info('Detected public key encrypted text, switching to decrypt mode')
+            } else {
+              setProcessMode('encrypt')
+            }
+          } else if (metadata.encryptionType === 'signed') {
+            toast.error('Signed content is not supported yet')
+            setTextInput('')
+            return
+          } else if (metadata.encryptionType === 'pwd') {
+            toast.error('Password encrypted content is not supported in this mode')
+            setTextInput('')
+            return
+          } else {
+            // Detected unencrypted text, switch to encrypt mode
+            if (processMode !== 'encrypt') {
+              setProcessMode('encrypt')
+              toast.info('Detected unencrypted text, switching to encrypt mode')
+            }
+          }
+          // For unencrypted text, keep current mode (don't auto-switch to encrypt)
+        } catch (error) {
+          console.error('Text detection failed:', error)
+          // On detection failure, don't change mode
+        }
+      }
+    }, 300) // 300ms debounce
+  }, [processMode])
+
+  // Enhanced key input focus handler - show all available keys
   const handleKeyInputFocus = useCallback(() => {
     setIsKeyInputFocused(true)
-    // Refresh keys when user starts typing
+    // Refresh keys when user focuses input
     refreshKeysFromStorage()
-    if (matchedKeys.length > 0) {
-      setShowKeyDropdown(true)
+
+    // Show all available keys on focus
+    if (processMode === 'encrypt') {
+      // Encrypt mode: show all public keys
+      setMatchedKeys(freshPublicKeys)
+      setShowKeyDropdown(freshPublicKeys.length > 0)
+    } else {
+      // Decrypt mode: show all key pairs
+      setMatchedKeys(freshKeyPairs)
+      setShowKeyDropdown(freshKeyPairs.length > 0)
     }
-  }, [matchedKeys.length, refreshKeysFromStorage])
+  }, [processMode, freshPublicKeys, freshKeyPairs, refreshKeysFromStorage])
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../workers/cryptoWorker.ts', import.meta.url))
@@ -159,17 +216,23 @@ export default function HomePage() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [processMode, keyPairs])
 
-  // Handle key input change and matching
+  // Enhanced key input change handler with better empty state handling
   const handleKeyInputChange = useCallback((value: string) => {
     setKeyInput(value)
 
+    // If no input, show all available keys when focused
     if (!value.trim()) {
-      setMatchedKeys([])
-      setShowKeyDropdown(false)
+      if (processMode === 'encrypt') {
+        setMatchedKeys(freshPublicKeys)
+        setShowKeyDropdown(freshPublicKeys.length > 0 && isKeyInputFocused)
+      } else {
+        setMatchedKeys(freshKeyPairs)
+        setShowKeyDropdown(freshKeyPairs.length > 0 && isKeyInputFocused)
+      }
       return
     }
 
-    // Find matching keys (use fresh keys for real-time updates)
+    // Filter matching keys based on input
     const matches: (PublicKey | KeyPair)[] = []
 
     if (processMode === 'encrypt') {
@@ -396,6 +459,9 @@ export default function HomePage() {
     setIsKeyInputFocused(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+    if (detectTimeoutRef.current) {
+      clearTimeout(detectTimeoutRef.current)
     }
   }
 
@@ -653,7 +719,7 @@ export default function HomePage() {
                 <TextInputArea
                   textInput={textInput}
                   textResult={textResult}
-                  onTextChange={setTextInput}
+                  onTextChange={handleTextInputChange}
                 />
               </div>
             </TabsContent>
@@ -667,19 +733,29 @@ export default function HomePage() {
                           {processMode === 'encrypt' ? 'Public Key' : 'Private Key or Mnemonic'}
                         </Label>
                         <div className="relative">
-                          <PasswordInput
-                            ref={keyInputRef}
-                            value={keyInput}
-                            onChange={(e) => handleKeyInputChange(e.target.value)}
-                            onFocus={handleKeyInputFocus}
-                            onBlur={handleKeyInputBlur}
-                            placeholder={
-                              processMode === 'encrypt'
-                                ? 'Enter Base58 public key (approx. 44-45 characters)'
-                                : 'Enter private key or mnemonic phrase'
-                            }
-                            className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
-                          />
+                          {
+                            processMode === 'encrypt' ? (
+                              <Input
+                                ref={keyInputRef}
+                                value={keyInput}
+                                onChange={(e) => handleKeyInputChange(e.target.value)}
+                                onFocus={handleKeyInputFocus}
+                                onBlur={handleKeyInputBlur}
+                                placeholder='Enter Base58 public key (approx. 44-45 characters)'
+                                className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
+                              />
+                            ) : (
+                              <PasswordInput
+                                ref={keyInputRef}
+                                value={keyInput}
+                                onChange={(e) => handleKeyInputChange(e.target.value)}
+                                onFocus={handleKeyInputFocus}
+                                onBlur={handleKeyInputBlur}
+                                placeholder='Enter private key or mnemonic phrase'
+                                className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 text-gray-900 dark:text-gray-200"
+                              />
+                            )
+                          }
                           {matchedKeys.length > 0 && (
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                               <ChevronDown className="w-4 h-4 text-gray-400" />
