@@ -11,7 +11,7 @@ import {
 } from '@ttpos/share-ui'
 import { Settings, Lock, X, ChevronLeft } from 'lucide-react'
 import Image from 'next/image'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import { ExternalPublicKeysTab } from '@/components/Header/ExternalPublicKeysTab'
@@ -19,7 +19,7 @@ import { ImportDialog } from '@/components/Header/ImportDialog'
 import { GeneralTab } from '@/components/Header/GeneralTab'
 import { KeysTab } from '@/components/Header/KeysTab'
 import { PublicKeyForm } from '@/components/Header/PublicKeyForm'
-import { SecurityPasswordTab } from '@/components/Header/SecurityPasswordTab'
+// import { SecurityPasswordTab } from '@/components/Header/SecurityPasswordTab'
 import { TABS, STORAGE_KEYS } from '@/constants'
 import { useSecureLocalStorage } from '@/hooks'
 import { validatePublicKey } from '@/lib/key'
@@ -151,7 +151,7 @@ export default function Header() {
             <Button variant="ghost" size="icon" onClick={() => setShowAddKey(false)}>
               <ChevronLeft className="size-4" />
             </Button>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">External Public Keys</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Receiver Keys</h2>
           </div>
           <div className="flex justify-center text-center pt-2 pb-6">
             <PublicKeyForm
@@ -196,12 +196,12 @@ export default function Header() {
     switch (activeTab) {
       case 'General':
         return <GeneralTab {...tabProps} />
-      case 'Keys':
+      case 'Owner Keys':
         return <KeysTab {...tabProps} />
-      case 'External Public Keys':
+      case 'Receiver Keys':
         return <ExternalPublicKeysTab {...tabProps} />
-      case 'Security Password':
-        return <SecurityPasswordTab {...tabProps} />
+      // case 'Security Password':
+      //   return <SecurityPasswordTab {...tabProps} />
       default:
         return (
           <div className="p-4 sm:p-6">

@@ -185,7 +185,7 @@ export const CreateKeyPairForm = ({
                   onChange={(e) => handleMnemonicChange(e.target.value)}
                   className={cn(
                     // Base styles
-                    'w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200 pr-20',
+                    'w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-200',
                     // Conditional border colors
                     {
                       // Error state (invalid mnemonic)
@@ -201,7 +201,7 @@ export const CreateKeyPairForm = ({
                   )}
                   placeholder="Enter your mnemonic phrase or click 'Generate New'"
                 />
-                {mnemonic && (
+                {/* {mnemonic && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex">
                     <Button
                       variant="ghost"
@@ -220,7 +220,7 @@ export const CreateKeyPairForm = ({
                       <Download className="size-4" />
                     </Button>
                   </div>
-                )}
+                )} */}
               </div>
             </div>
           </div>
@@ -269,10 +269,10 @@ export const CreateKeyPairForm = ({
                 type="text"
                 value={publicKey}
                 readOnly
-                className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-200 pr-10 cursor-default"
+                className="w-full font-mono text-xs sm:text-sm break-all resize-none rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-200 cursor-default"
                 placeholder="Public key will be displayed here"
               />
-              <Button
+              {/* <Button
                 variant="ghost"
                 size="icon"
                 className="absolute right-2 top-1/2 -translate-y-1/2"
@@ -280,7 +280,7 @@ export const CreateKeyPairForm = ({
                 disabled={!publicKey}
               >
                 <Copy className="size-4" />
-              </Button>
+              </Button> */}
             </div>
           </div>
         )}

@@ -109,24 +109,26 @@ export const KeyPairTable = ({
   }
 
   return (
-    <div className="overflow-x-auto pb-4 sm:pb-6">
-      <Table>
+    <div className="w-full">
+      <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="p-2 sm:p-3 text-left">Public Key</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left w-2/5">Note</TableHead>
-            <TableHead className="p-2 sm:p-3 text-left"></TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '50%' }}>Public Key</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '30%' }}>Note</TableHead>
+            <TableHead className="p-2 sm:p-3 text-left" style={{ width: '20%' }}></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {keyPairs.map((keyPair, index) => (
             <TableRow key={index} className="border-b border-gray-200 dark:border-gray-600 text-gray-500 font-normal">
-              <TableCell>
+              <TableCell className="p-2 sm:p-3" style={{ width: '50%' }}>
                 <HoverCard>
                   <HoverCardTrigger asChild>
-                    <div className="flex items-center gap-2">
-                      {sliceAddress(keyPair.publicKey)}
-                      <div>
+                    <div className="flex items-center min-w-0">
+                      <span className="truncate flex-1 font-mono text-xs sm:text-sm" title={keyPair.publicKey}>
+                        {keyPair.publicKey}
+                      </span>
+                      <div className="flex-shrink-0">
                         <Button variant="ghost" size="icon" onClick={() => onCopyPublic(keyPair.publicKey)}>
                           <Copy className="size-4" />
                         </Button>
@@ -138,8 +140,10 @@ export const KeyPairTable = ({
                   </HoverCardTrigger>
                   <HoverCardContent className='w-full'>
                     <div className="flex items-center gap-2">
-                      {keyPair.publicKey}
-                      <div>
+                      <span className="font-mono text-xs break-all flex-1">
+                        {keyPair.publicKey}
+                      </span>
+                      <div className="flex-shrink-0">
                         <Button variant="ghost" size="icon" onClick={() => onCopyPublic(keyPair.publicKey)}>
                           <Copy className="size-4" />
                         </Button>
@@ -151,14 +155,14 @@ export const KeyPairTable = ({
                   </HoverCardContent>
                 </HoverCard>
               </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <span className="truncate max-w-30 sm:max-w-40">
+              <TableCell className="p-2 sm:p-3" style={{ width: '30%' }}>
+                <div className="flex items-center min-w-0">
+                  <span className="truncate" title={keyPair.note}>
                     {keyPair.note || '---'}
                   </span>
                   <Popover open={isNotePopoverOpen && editingIndex === index} onOpenChange={(open) => !open && handleCancelNote()}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => handleEditNote(keyPair, index)}>
+                      <Button variant="ghost" size="icon" className="flex-shrink-0" onClick={() => handleEditNote(keyPair, index)}>
                         <Pencil className="size-4" />
                       </Button>
                     </PopoverTrigger>
@@ -186,7 +190,7 @@ export const KeyPairTable = ({
                   </Popover>
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="p-2 sm:p-3" style={{ width: '20%' }}>
                 <div className="flex items-center gap-1">
                   <Popover open={isMnemonicPopoverOpen && editingIndex === index} onOpenChange={(open) => !open && handleCloseMnemonic()}>
                     <PopoverTrigger asChild>
