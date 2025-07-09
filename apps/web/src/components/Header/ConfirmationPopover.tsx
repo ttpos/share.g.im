@@ -30,7 +30,7 @@ export const ConfirmationPopover = ({
   triggerIcon = <Trash2 className="size-4 sm:size-5" />,
   type = 'delete'
 }: ConfirmationPopoverProps) => {
-  const tButtons = useTranslations('buttons')
+  const t = useTranslations()
 
   const getButtonVariant = () => {
     switch (type) {
@@ -46,11 +46,11 @@ export const ConfirmationPopover = ({
   const getButtonText = () => {
     switch (type) {
       case 'delete':
-        return tButtons('delete')
+        return t('buttons.delete')
       case 'reset':
-        return tButtons('reset')
+        return t('buttons.reset')
       default:
-        return tButtons('confirm')
+        return t('buttons.confirm')
     }
   }
 
@@ -96,7 +96,7 @@ export const ConfirmationPopover = ({
           </p>
           <div className="flex justify-end gap-2 sm:gap-3">
             <Button variant="outline" onClick={onCancel}>
-              {tButtons('cancel')}
+              {t('buttons.cancel')}
             </Button>
             <Button variant={getButtonVariant()} onClick={onConfirm}>
               {getButtonText()}
