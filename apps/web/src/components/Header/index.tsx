@@ -11,7 +11,8 @@ import {
 } from '@ttpos/share-ui'
 import { Settings, Lock, X, ChevronLeft } from 'lucide-react'
 import Image from 'next/image'
-import { useState, useCallback, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 
 import { ExternalPublicKeysTab } from '@/components/Header/ExternalPublicKeysTab'
@@ -19,13 +20,17 @@ import { ImportDialog } from '@/components/Header/ImportDialog'
 import { GeneralTab } from '@/components/Header/GeneralTab'
 import { KeysTab } from '@/components/Header/KeysTab'
 import { PublicKeyForm } from '@/components/Header/PublicKeyForm'
-import { SecurityPasswordTab } from '@/components/Header/SecurityPasswordTab'
+// import { SecurityPasswordTab } from '@/components/Header/SecurityPasswordTab'
 import { TABS, STORAGE_KEYS } from '@/constants'
 import { useSecureLocalStorage } from '@/hooks'
 import { validatePublicKey } from '@/lib/key'
 import { PublicKey, KeyPair, TabType } from '@/types'
 
 export default function Header() {
+  const t = useTranslations('header')
+  const tSettings = useTranslations('settings')
+  const tMessages = useTranslations('messages')
+
   // Main state
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabType>('General')
@@ -122,11 +127,27 @@ export default function Header() {
     }
 
     setPublicKeys(newPublicKeys)
-    toast.success('Public key saved successfully')
+    toast.success(tMessages('success.publicKeySaved'))
     setShowAddKey(false)
     setEditKey(null)
     setValidationError('')
-  }, [editKey, publicKeys, setPublicKeys, setShowAddKey, setEditKey])
+  }, [editKey, publicKeys, setPublicKeys, setShowAddKey, setEditKey, tMessages])
+
+  // Get tab name with translation
+  const getTabName = (tab: TabType) => {
+    switch (tab) {
+      case 'General':
+        return tSettings('tabs.general')
+      case 'Owner Keys':
+        return tSettings('tabs.ownerKeys')
+      case 'Receiver Keys':
+        return tSettings('tabs.receiverKeys')
+      case 'Security Password':
+        return tSettings('tabs.securityPassword')
+      default:
+        return tab
+    }
+  }
 
   // Render tab content
   const renderTabContent = () => {
@@ -151,7 +172,9 @@ export default function Header() {
             <Button variant="ghost" size="icon" onClick={() => setShowAddKey(false)}>
               <ChevronLeft className="size-4" />
             </Button>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">External Public Keys</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {tSettings('tabs.receiverKeys')}
+            </h2>
           </div>
           <div className="flex justify-center text-center pt-2 pb-6">
             <PublicKeyForm
@@ -196,18 +219,20 @@ export default function Header() {
     switch (activeTab) {
       case 'General':
         return <GeneralTab {...tabProps} />
-      case 'Keys':
+      case 'Owner Keys':
         return <KeysTab {...tabProps} />
-      case 'External Public Keys':
+      case 'Receiver Keys':
         return <ExternalPublicKeysTab {...tabProps} />
-      case 'Security Password':
-        return <SecurityPasswordTab {...tabProps} />
+      // case 'Security Password':
+      //   return <SecurityPasswordTab {...tabProps} />
       default:
         return (
           <div className="p-4 sm:p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">{activeTab}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+              {getTabName(activeTab)}
+            </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Content for {activeTab} section will be implemented here.
+              Content for {getTabName(activeTab)} section will be implemented here.
             </p>
           </div>
         )
@@ -235,7 +260,7 @@ export default function Header() {
             className="size-10 sm:size-12 text-blue-500 mx-auto mb-2 hidden dark:block"
           />
           <h3 className="text-sm md:text-base font-medium text-white dark:text-gray-300">
-            ECIES File & Message Encryption Tool
+            {t('title')}
           </h3>
         </div>
 
@@ -258,7 +283,7 @@ export default function Header() {
                       <ChevronLeft className="size-4" />
                     </Button>
                     <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      Settings
+                      {tSettings('title')}
                     </DialogTitle>
                   </div>
                   <Button
@@ -292,7 +317,7 @@ export default function Header() {
                           )}
                           onClick={() => handleTabClick(tab)}
                         >
-                          {tab}
+                          {getTabName(tab)}
                         </Button>
                       ))}
                     </nav>
