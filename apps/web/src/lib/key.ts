@@ -1,7 +1,7 @@
 import {
   isBase58String,
   validateBase58PublicKey
-} from '@ttpos/share-utils'
+} from '@nsiod/share-utils'
 
 import { ValidationResult } from '../types'
 

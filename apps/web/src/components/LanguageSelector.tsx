@@ -4,7 +4,7 @@ import {
   Label,
   RadioGroup,
   RadioGroupItem
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import { useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTransition } from 'react'

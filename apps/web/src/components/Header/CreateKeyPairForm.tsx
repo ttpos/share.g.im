@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
-import { Button, Label, Input, cn } from '@ttpos/share-ui'
-import { deriveKeyPair, downloadFile, generateMnemonic, validateMnemonic } from '@ttpos/share-utils'
-import { Copy, Download, RefreshCw, Shuffle } from 'lucide-react'
+import { Button, Label, Input, cn } from '@nsiod/share-ui'
+import { deriveKeyPair, downloadFile, generateMnemonic, validateMnemonic } from '@nsiod/share-utils'
+import { RefreshCw, Shuffle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'

@@ -1,7 +1,7 @@
 /* eslint-disable import/order */
 /* eslint-disable no-unused-vars */
 
-import { Button } from '@ttpos/share-ui'
+import { Button } from '@nsiod/share-ui'
 import { Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'

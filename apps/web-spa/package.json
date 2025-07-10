@@ -1,9 +1,14 @@
 {
-  "name": "@ttpos/share-web-spa",
+  "name": "@nsiod/share-web-spa",
   "type": "module",
   "version": "1.0.0",
-  "private": true,
   "description": "SecureVault uses ECIES for secure and efficient file encryption and decryption.",
+  "homepage": "https://ns.io/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nsiod/share.git",
+    "directory": "apps/web-spa"
+  },
   "scripts": {
     "dev": "vite --port 3001",
     "build": "tsc -b && vite build",
@@ -11,9 +16,9 @@
     "preview": "vite preview --port 3001"
   },
   "dependencies": {
+    "@nsiod/share-ui": "workspace:*",
+    "@nsiod/share-utils": "workspace:*",
     "@scure/base": "catalog:prod",
-    "@ttpos/share-ui": "workspace:*",
-    "@ttpos/share-utils": "workspace:*",
     "buffer": "catalog:prod",
     "lucide-react": "catalog:prod",
     "postcss": "catalog:prod",
@@ -27,7 +32,7 @@
     "@esbuild-plugins/node-globals-polyfill": "catalog:dev",
     "@eslint/js": "catalog:dev",
     "@tailwindcss/vite": "catalog:dev",
-    "@types/node": "^20",
+    "@types/node": "catalog:dev",
     "@types/react": "catalog:dev",
     "@types/react-dom": "catalog:dev",
     "@vitejs/plugin-react": "catalog:dev",

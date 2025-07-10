@@ -11,7 +11,7 @@ import {
   TabsTrigger,
   Textarea,
   cn
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import {
   deriveKeyPair,
   detect,
@@ -21,7 +21,7 @@ import {
   isMnemonicPhrase,
   validateBase58PublicKey,
   downloadFile
-} from '@ttpos/share-utils'
+} from '@nsiod/share-utils'
 import { Download, RefreshCw, X, Copy, Eye, ChevronDown, Check } from 'lucide-react'
 import Image from 'next/image'
 import { Locale } from 'next-intl'

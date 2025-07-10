@@ -10,7 +10,7 @@ import {
   TabsTrigger,
   Textarea,
   cn
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import {
   deriveKeyPair,
   detect,
@@ -20,7 +20,7 @@ import {
   isHexString,
   isMnemonicPhrase,
   validateBase58PublicKey
-} from '@ttpos/share-utils'
+} from '@nsiod/share-utils'
 import { Download, RefreshCw, X, Copy } from 'lucide-react'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'

@@ -1,10 +1,8 @@
 {
-  "name": "@ttpos/share-utils",
+  "name": "@nsiod/share-utils",
   "type": "module",
   "version": "1.0.0",
-  "private": true,
-  "license": "MIT",
-  "homepage": "https://github.com/nsiod/share.git",
+  "homepage": "https://ns.io/",
   "repository": {
     "type": "git",
     "url": "https://github.com/nsiod/share.git",
@@ -37,7 +35,7 @@
     "eciesjs": "catalog:prod"
   },
   "devDependencies": {
-    "@ttpos/share-tsconfig": "workspace:*",
+    "@nsiod/share-tsconfig": "workspace:*",
     "@types/node": "catalog:dev",
     "size-limit": "catalog:dev",
     "tslib": "catalog:dev",

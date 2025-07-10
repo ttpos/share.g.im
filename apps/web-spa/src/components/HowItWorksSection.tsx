@@ -3,7 +3,7 @@
 import {
   Button,
   cn
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import { useState, useMemo } from 'react'
 
 // Type definitions
