@@ -1,6 +1,37 @@
-import { redirect } from 'next/navigation'
+'use client'
 
-// This page only renders when the app is built statically (output: 'export')
-export default function RootPage() {
-  redirect('/en')
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+export default function HomePage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const savedLocale = localStorage.getItem('preferred-locale')
+    if (savedLocale && ['en', 'zh'].includes(savedLocale)) {
+      router.replace(`/${savedLocale}`)
+      return
+    }
+
+    const browserLanguages = navigator.languages || [navigator.language]
+    let detectedLocale = 'en'
+
+    for (const lang of browserLanguages) {
+      const normalizedLang = lang.toLowerCase().split('-')[0]
+      if (normalizedLang === 'zh') {
+        detectedLocale = 'zh'
+        break
+      }
+    }
+    localStorage.setItem('@nsiod/share-web-locale', detectedLocale)
+
+    router.replace(`/${detectedLocale}`)
+  }, [router])
+
+  return (
+    <html lang="en">
+      <body>
+      </body>
+    </html>
+  )
 }
