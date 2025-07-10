@@ -47,4 +47,4 @@ SecureVault is a Vite + React-based client-side file encryption/decryption tool 
 
 ## 📜 License
 
-[MIT](./LICENSE) License © 2025-PRESENT [ttpos](https://github.com/ttpos)
+[MIT](./LICENSE) License © 2025-PRESENT [nsiod](https://github.com/nsiod)

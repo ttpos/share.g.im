@@ -1,4 +1,4 @@
-import { Textarea } from '@ttpos/share-ui'
+import { Textarea } from '@nsiod/share-ui'
 import { useTranslations } from 'next-intl'
 
 interface TextInputAreaProps {

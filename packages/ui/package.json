@@ -1,11 +1,9 @@
 {
-  "name": "@ttpos/share-ui",
+  "name": "@nsiod/share-ui",
   "type": "module",
   "version": "1.0.0",
-  "private": true,
-  "description": "ttpos ui",
-  "license": "MIT",
-  "homepage": "https://github.com/nsiod/share.git",
+  "description": "nsiod ui",
+  "homepage": "https://ns.io/",
   "repository": {
     "type": "git",
     "url": "https://github.com/nsiod/share.git",
@@ -61,8 +59,8 @@
     "tailwind-merge": "catalog:prod"
   },
   "devDependencies": {
+    "@nsiod/share-tsconfig": "workspace:*",
     "@tailwindcss/postcss": "catalog:dev",
-    "@ttpos/share-tsconfig": "workspace:*",
     "tailwindcss": "catalog:dev",
     "tsup": "catalog:dev",
     "tw-animate-css": "catalog:dev"

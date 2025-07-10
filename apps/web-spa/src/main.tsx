@@ -4,7 +4,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import App from './App';
 import Home from './pages/Home';
 // @ts-ignore
-import '@ttpos/share-ui/css'
+import '@nsiod/share-ui/css'
 
 import { Buffer } from 'buffer';
 

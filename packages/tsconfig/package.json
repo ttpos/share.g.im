@@ -1,8 +1,13 @@
 {
-  "name": "@ttpos/share-tsconfig",
+  "name": "@nsiod/share-tsconfig",
   "version": "1.0.0",
-  "description": "tsconfig for ttpos share",
-  "private": true,
+  "description": "tsconfig for nsiod share",
+  "homepage": "https://ns.io/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nsiod/share.git",
+    "directory": "packages/tsconfig"
+  },
   "scripts": {
     "prepare": "ts-patch install -s"
   },

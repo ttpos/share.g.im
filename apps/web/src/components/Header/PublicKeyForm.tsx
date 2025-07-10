@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import { Button, Label, Input, cn } from '@ttpos/share-ui'
+import { Button, Label, Input, cn } from '@nsiod/share-ui'
 import { useTranslations } from 'next-intl'
 
 import { PublicKey } from '@/types'

@@ -6,7 +6,7 @@ import {
   PopoverTrigger,
   Label,
   Input
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import { Pencil } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 

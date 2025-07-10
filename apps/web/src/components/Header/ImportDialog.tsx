@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
-import { Button, Label, CustomOtpInput } from '@ttpos/share-ui'
-import { verifyPasswordFn } from '@ttpos/share-utils'
+import { Button, Label, CustomOtpInput } from '@nsiod/share-ui'
+import { verifyPasswordFn } from '@nsiod/share-utils'
 import { ChevronLeft } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'

@@ -1,4 +1,4 @@
-import { Button } from '@ttpos/share-ui'
+import { Button } from '@nsiod/share-ui'
 import Image from 'next/image'
 
 interface EmptyStateProps {

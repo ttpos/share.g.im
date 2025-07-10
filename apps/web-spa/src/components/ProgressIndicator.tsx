@@ -1,4 +1,4 @@
-import { Progress } from '@ttpos/share-ui'
+import { Progress } from '@nsiod/share-ui'
 
 interface ProgressIndicatorProps {
   isProcessing: boolean

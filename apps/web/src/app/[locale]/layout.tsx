@@ -6,7 +6,7 @@ import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server
 import { Toaster } from 'sonner'
 
 // import './globals.css'
-import '@ttpos/share-ui/css'
+import '@nsiod/share-ui/css'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { Providers } from '@/components/providers'
@@ -39,9 +39,9 @@ export async function generateMetadata({
     title: t('title'),
     description: t('description'),
     keywords: keywordsArray,
-    authors: [{ name: 'ttpos' }],
-    creator: 'ttpos',
-    publisher: 'ttpos',
+    authors: [{ name: 'nsiod' }],
+    creator: 'nsiod',
+    publisher: 'nsiod',
     openGraph: {
       title: t('title'),
       description: t('description'),
@@ -62,7 +62,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title: t('title'),
       description: t('description'),
-      creator: '@ttpos'
+      creator: '@nsiod'
       // images: ['https://ns.io/twitter-image.jpg']
     },
     icons: '/logo.svg',

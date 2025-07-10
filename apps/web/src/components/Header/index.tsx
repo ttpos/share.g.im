@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   cn
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import { Settings, Lock, X, ChevronLeft } from 'lucide-react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'

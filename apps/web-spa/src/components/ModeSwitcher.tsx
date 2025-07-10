@@ -7,7 +7,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 
 interface ModeSwitcherProps {
   value: string;
