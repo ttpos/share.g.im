@@ -5,7 +5,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import { Info, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 

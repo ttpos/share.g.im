@@ -51,4 +51,4 @@ SecureVault is a Next.js-based client-side file encryption/decryption tool desig
 
 ## 📜 License
 
-[MIT](./LICENSE) License © 2025-PRESENT [ttpos](https://github.com/ttpos)
+[MIT](./LICENSE) License © 2025-PRESENT [nsiod](https://github.com/nsiod)

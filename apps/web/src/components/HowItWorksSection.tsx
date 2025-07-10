@@ -3,7 +3,7 @@
 import {
   Button,
   cn
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { useState, useMemo } from 'react'

@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import { Button } from '@ttpos/share-ui'
+import { Button } from '@nsiod/share-ui'
 import { ChevronLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback } from 'react'

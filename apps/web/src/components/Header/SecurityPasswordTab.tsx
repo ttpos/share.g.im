@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-
 /* eslint-disable no-unused-vars */
-import { Button, Label, CustomOtpInput, Alert, AlertTitle, Popover, PopoverTrigger, PopoverContent, Input } from '@ttpos/share-ui'
-import { hashPasswordFn, verifyPasswordFn } from '@ttpos/share-utils'
+import { Button, Label, CustomOtpInput, Alert, AlertTitle, Popover, PopoverTrigger, PopoverContent, Input } from '@nsiod/share-ui'
+import { hashPasswordFn, verifyPasswordFn } from '@nsiod/share-utils'
 import { useTranslations } from 'next-intl'
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'

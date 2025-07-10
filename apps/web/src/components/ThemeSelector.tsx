@@ -4,7 +4,7 @@ import {
   Label,
   RadioGroup,
   RadioGroupItem
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 

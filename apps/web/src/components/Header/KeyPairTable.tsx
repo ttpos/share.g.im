@@ -16,8 +16,8 @@ import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger
-} from '@ttpos/share-ui'
-import { downloadFile, sliceAddress } from '@ttpos/share-utils'
+} from '@nsiod/share-ui'
+import { downloadFile } from '@nsiod/share-utils'
 import { Copy, Pencil, Trash2, Info, Link, Download, Eye } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'

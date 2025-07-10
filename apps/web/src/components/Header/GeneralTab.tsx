@@ -13,8 +13,8 @@ import {
   DialogFooter,
   Label,
   CustomOtpInput
-} from '@ttpos/share-ui'
-import { hashPasswordFn, downloadFile } from '@ttpos/share-utils'
+} from '@nsiod/share-ui'
+import { hashPasswordFn, downloadFile } from '@nsiod/share-utils'
 import { Info } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useState, useRef, useEffect } from 'react'

@@ -1,14 +1,16 @@
 {
-  "name": "@ttpos/share-turborepo",
+  "name": "@nsiod/share-turborepo",
   "type": "module",
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@9.5.0",
-  "author": {
-    "name": "ttpos",
-    "url": "https://github.com/ttpos"
-  },
+  "author": "ns-cd996",
   "license": "MIT",
+  "homepage": "https://ns.io/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nsiod/share.git"
+  },
   "engines": {
     "node": ">=18"
   },

@@ -1,5 +1,5 @@
 {
-  "extends": "@ttpos/share-tsconfig/utils",
+  "extends": "@nsiod/share-tsconfig/utils",
   "compilerOptions": {
     "outDir": "dist",
   },

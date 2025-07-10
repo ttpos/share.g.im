@@ -7,7 +7,7 @@ import {
   Card,
   CardHeader,
   CardContent
-} from '@ttpos/share-ui'
+} from '@nsiod/share-ui'
 import { useTranslations } from 'next-intl'
 
 export default function Error({ reset }: { reset: () => void }) {

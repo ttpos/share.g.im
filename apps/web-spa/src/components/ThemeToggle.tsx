@@ -1,4 +1,4 @@
-import { Button } from '@ttpos/share-ui';
+import { Button } from '@nsiod/share-ui';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/components/Providers';
 
