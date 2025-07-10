@@ -7,7 +7,8 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    const savedLocale = localStorage.getItem('preferred-locale')
+    const key = '@nsiod/share-web-locale'
+    const savedLocale = localStorage.getItem(key)
     if (savedLocale && ['en', 'zh'].includes(savedLocale)) {
       router.replace(`/${savedLocale}`)
       return
@@ -23,7 +24,7 @@ export default function HomePage() {
         break
       }
     }
-    localStorage.setItem('@nsiod/share-web-locale', detectedLocale)
+    localStorage.setItem(key, detectedLocale)
 
     router.replace(`/${detectedLocale}`)
   }, [router])
