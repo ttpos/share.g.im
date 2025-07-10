@@ -295,20 +295,6 @@ export default function HomePage({ params }: Props) {
     }, 200)
   }, [])
 
-  // Get display text for key item
-  const getKeyDisplayText = useCallback((key: PublicKey | KeyPair) => {
-    if (processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic) {
-      // For decryption, show mnemonic with truncation
-      const words = key.mnemonic.split(' ')
-      if (words.length > 6) {
-        return `${words.slice(0, 3).join(' ')}...${words.slice(-3).join(' ')}`
-      }
-      return key.mnemonic
-    }
-    // For encryption or when no mnemonic, show public key
-    return `${key.publicKey.substring(0, 8)}...${key.publicKey.substring(-8)}`
-  }, [processMode])
-
   // Get secondary display text (note or public key)
   const getKeySecondaryText = useCallback((key: PublicKey | KeyPair) => {
     if (processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic) {
@@ -781,7 +767,6 @@ export default function HomePage({ params }: Props) {
                                   <span>{processMode === 'encrypt' ? tInput('publicKey') : tInput('privateKey')}</span>
                                 </div>
                                 {matchedKeys.map((key, index) => {
-                                  const displayText = getKeyDisplayText(key)
                                   const secondaryText = getKeySecondaryText(key)
                                   const isSelected = processMode === 'encrypt'
                                     ? keyInput === key.publicKey
@@ -796,9 +781,11 @@ export default function HomePage({ params }: Props) {
                                       onClick={() => handleKeySelect(key)}
                                     >
                                       <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 font-mono truncate">
-                                          {displayText}
-                                        </div>
+                                        {!(processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic) && (
+                                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 font-mono truncate">
+                                            {key.publicKey}
+                                          </div>
+                                        )}
                                         {secondaryText && (
                                           <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
                                             - {processMode === 'decrypt' && 'mnemonic' in key && key.mnemonic
@@ -832,6 +819,7 @@ export default function HomePage({ params }: Props) {
                           <PasswordInput
                             value={getMatchedPublicKey() || ''}
                             readOnly
+                            defaultShowPassword={true}
                             className="font-mono text-xs sm:text-sm h-10 flex-1 rounded-lg border-1 bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 cursor-default"
                             placeholder={tInput('publicKey')}
                           />
